@@ -230,3 +230,13 @@ CREATE POLICY "Analytics insertable by anyone" ON analytics_events
 -- Enable realtime for share links (for live feedback)
 alter publication supabase_realtime add table share_links;
 alter publication supabase_realtime add table analytics_events;
+
+-- Function to increment view count
+CREATE OR REPLACE FUNCTION increment_view_count(link_id UUID)
+RETURNS void AS $$
+BEGIN
+  UPDATE share_links
+  SET view_count = view_count + 1
+  WHERE id = link_id;
+END;
+$$ LANGUAGE plpgsql;
