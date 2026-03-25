@@ -86,13 +86,19 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
             <a
               href="#"
-              className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              className="block text-sm text-blue-400 hover:text-blue-300 transition-colors"
             >
               Forgot password?
             </a>
+            <p className="text-sm text-slate-400">
+              Don&apos;t have an account?{' '}
+              <a href="/auth/signup" className="text-blue-400 hover:text-blue-300 transition-colors">
+                Sign up
+              </a>
+            </p>
           </div>
         </div>
 
