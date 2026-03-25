@@ -98,8 +98,8 @@ export default function BulkUploadPage() {
         const mapping: Record<string, string> = {}
         fileArray.forEach(file => {
           // Try to extract seat number from filename
-          // Expected formats: "Section-101-Row-A-Seat-1.jpg" or "101-A-1.jpg" or "1.jpg"
-          const match = file.name.match(/seat[\s_-]?(\d+)|[\s_-](\d+)\.[a-z]+$/i)
+          // Expected formats: "Section-101-Row-A-Seat-1.jpg" or "101-A-1.jpg" or "1.jpg" or "1.dng"
+          const match = file.name.match(/seat[\s_-]?(\d+)|[\s_-](\d+)\.(jpg|jpeg|dng)$/i)
           if (match) {
             const seatNum = match[1] || match[2]
             const seat = seats.find(s => s.seat_number === seatNum)
@@ -173,6 +173,10 @@ export default function BulkUploadPage() {
           .from('seat-photos')
           .getPublicUrl(filePath)
 
+        // Determine file type
+        const fileExtension = file.name.split('.').pop()?.toLowerCase()
+        const isDng = fileExtension === 'dng'
+        
         // Save to database
         const { error: dbError } = await supabase.from('photos').upsert({
           seat_id: seatId,
@@ -182,6 +186,8 @@ export default function BulkUploadPage() {
           metadata: {
             original_name: file.name,
             type: file.type,
+            extension: fileExtension,
+            is_raw: isDng,
           },
         }, {
           onConflict: 'seat_id',
@@ -326,7 +332,7 @@ export default function BulkUploadPage() {
             <div className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center hover:border-blue-500 transition-colors">
               <input
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.dng,image/jpeg,image/dng"
                 multiple
                 onChange={handleFileSelect}
                 className="hidden"
@@ -340,7 +346,8 @@ export default function BulkUploadPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 <p className="text-lg font-medium mb-2">Drop files here or click to browse</p>
-                <p className="text-sm text-slate-400">Support for JPEG 360° photos (25MB max per file)</p>
+                <p className="text-sm text-slate-400">Support for JPEG and DNG 360° photos (25MB max per file)</p>
+                <p className="text-xs text-slate-500 mt-1">.jpg, .jpeg, .dng files accepted</p>
               </label>
             </div>
 

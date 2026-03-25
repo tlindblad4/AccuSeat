@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS photos (
 CREATE TABLE IF NOT EXISTS user_venues (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    venue_id UUID NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+    venue_id UUID REFERENCES venues(id) ON DELETE CASCADE, -- NULL for admins
     role TEXT NOT NULL DEFAULT 'rep', -- 'admin', 'rep'
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, venue_id)
