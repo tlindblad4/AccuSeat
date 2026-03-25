@@ -47,7 +47,7 @@ export default function VenuePage() {
     
     // Set default level
     if (sectionsData && sectionsData.length > 0) {
-      const levels = [...new Set(sectionsData.map(s => s.level))]
+      const levels = Array.from(new Set(sectionsData.map(s => s.level)))
       setSelectedLevel(levels[0])
     }
 
