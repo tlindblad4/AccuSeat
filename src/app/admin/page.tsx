@@ -197,10 +197,16 @@ export default function AdminDashboard() {
                     {venue.total_seats?.toLocaleString() || 0} seats
                   </span>
                   <Link
-                    href={`/admin/venues/${venue.id}/upload`}
+                    href={`/admin/venues/${venue.id}/setup`}
+                    className="text-sm text-emerald-400 hover:text-emerald-300"
+                  >
+                    Setup
+                  </Link>
+                  <Link
+                    href={`/admin/upload`}
                     className="text-sm text-blue-400 hover:text-blue-300"
                   >
-                    Upload Photos
+                    Upload
                   </Link>
                 </div>
               </div>

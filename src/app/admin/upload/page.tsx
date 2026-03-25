@@ -98,10 +98,12 @@ export default function BulkUploadPage() {
         const mapping: Record<string, string> = {}
         fileArray.forEach(file => {
           // Try to extract seat number from filename
-          // Expected formats: "Section-101-Row-A-Seat-1.jpg" or "101-A-1.jpg" or "1.jpg" or "1.dng"
-          const match = file.name.match(/seat[\s_-]?(\d+)|[\s_-](\d+)\.(jpg|jpeg|dng)$/i)
+          // Supports: "LOWER 101_A_1.dng", "Section-101-Row-A-Seat-1.jpg", "101-A-1.jpg", "1.jpg", "1.dng"
+          // Pattern: anything followed by underscore or hyphen, then number before .extension
+          const match = file.name.match(/[\s_-](\d+)\.(jpg|jpeg|dng)$/i) || 
+                       file.name.match(/(\d+)\.(jpg|jpeg|dng)$/i)
           if (match) {
-            const seatNum = match[1] || match[2]
+            const seatNum = match[1]
             const seat = seats.find(s => s.seat_number === seatNum)
             if (seat) {
               mapping[file.name] = seat.id
