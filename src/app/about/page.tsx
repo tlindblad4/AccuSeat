@@ -41,18 +41,18 @@ export default function AboutPage() {
 
           <h2 className="text-2xl font-semibold mt-12 mb-6">The Problem We Solve</h2>
           <p className="text-slate-300 mb-6">
-            Ticket sales reps face a common objection: "I need to come see it in person before I buy." 
-            This slows down the sales process and creates friction for both reps and prospects. 
-            Existing solutions either use virtual recreations that don't match reality, or only 
-            offer section-level views that don't show the actual seat perspective.
+            Ticket sales reps face a common objection: &ldquo;I need to come see it in person before I buy.&rdquo;
+            This slows down the sales process and creates friction for both reps and prospects.
+            Existing solutions either use virtual recreations that don&apos;t match reality, or only
+            offer section-level views that don&apos;t show the actual seat perspective.
           </p>
 
           <h2 className="text-2xl font-semibold mt-12 mb-6">Our Solution</h2>
           <p className="text-slate-300 mb-6">
-            AccuSeat eliminates the guesswork. We photograph every single seat in the venue, 
-            creating a complete database of 360° views. When a rep is working with a prospect, 
-            they can instantly send a link to the exact seat view, allowing the fan to "look around" 
-            from that specific perspective using their phone's gyroscope.
+            AccuSeat eliminates the guesswork. We photograph every single seat in the venue,
+            creating a complete database of 360° views. When a rep is working with a prospect,
+            they can instantly send a link to the exact seat view, allowing the fan to &ldquo;look around&rdquo;
+            from that specific perspective using their phone&apos;s gyroscope.
           </p>
 
           <div className="grid md:grid-cols-2 gap-8 my-12">
@@ -60,7 +60,7 @@ export default function AboutPage() {
               <h3 className="text-xl font-semibold mb-3 text-blue-400">For Sales Reps</h3>
               <ul className="space-y-2 text-slate-300">
                 <li>• Close sales faster</li>
-                <li>• Overcome "see it first" objections</li>
+                <li>• Overcome &ldquo;see it first&rdquo; objections</li>
                 <li>• Send seat views instantly via text</li>
                 <li>• Track prospect engagement</li>
                 <li>• Bundle multiple options in one link</li>
@@ -69,7 +69,7 @@ export default function AboutPage() {
             <div className="bg-slate-800 rounded-xl p-6">
               <h3 className="text-xl font-semibold mb-3 text-emerald-400">For Fans</h3>
               <ul className="space-y-2 text-slate-300">
-                <li>• See exactly what they'll see</li>
+                <li>• See exactly what they&apos;ll see</li>
                 <li>• No app download required</li>
                 <li>• Use their phone to look around</li>
                 <li>• Compare multiple seat options</li>
@@ -98,7 +98,7 @@ export default function AboutPage() {
               <div>
                 <h3 className="font-semibold mb-1">Reps Access the Database</h3>
                 <p className="text-slate-400">
-                  Sales reps log in to browse their venue's complete seat inventory.
+                  Sales reps log in to browse their venue&apos;s complete seat inventory.
                 </p>
               </div>
             </div>
@@ -128,8 +128,8 @@ export default function AboutPage() {
 
           <h2 className="text-2xl font-semibold mt-12 mb-6">Built by Reps, for Reps</h2>
           <p className="text-slate-300 mb-6">
-            AccuSeat was designed by ticket sales professionals who understand the daily challenges 
-            of selling seats. Every feature, from the mobile-first design to the one-tap sharing, 
+            AccuSeat was designed by ticket sales professionals who understand the daily challenges
+            of selling seats. Every feature, from the mobile-first design to the one-tap sharing,
             was built to make reps more effective and help them close more sales.
           </p>
         </div>
