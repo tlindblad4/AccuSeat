@@ -19,6 +19,7 @@ export default function ViewPage() {
 
   useEffect(() => {
     loadShareLink()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   const loadShareLink = async () => {
@@ -62,8 +63,8 @@ export default function ViewPage() {
 
     if (itemsData) {
       // Load photos for each seat
-      const itemsWithPhotos = await Promise.all(
-        itemsData.map(async (item: any) => {
+      const itemsWithPhotos: (ShareLinkItem & { photo?: Photo })[] = await Promise.all(
+        itemsData.map(async (item) => {
           const { data: photoData } = await supabase
             .from('photos')
             .select('*')
@@ -210,11 +211,11 @@ export default function ViewPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Section</span>
-                    <span className="font-medium">{(currentItem.seat as any).row?.section?.section_number}</span>
+                    <span className="font-medium">{currentItem.seat.row?.section?.section_number}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Row</span>
-                    <span className="font-medium">{(currentItem.seat as any).row?.row_number}</span>
+                    <span className="font-medium">{currentItem.seat.row?.row_number}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Seat</span>

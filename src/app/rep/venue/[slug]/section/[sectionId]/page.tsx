@@ -29,6 +29,7 @@ export default function SectionPage() {
 
   useEffect(() => {
     loadSectionData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId])
 
   const loadSectionData = async () => {
@@ -47,7 +48,7 @@ export default function SectionPage() {
       return
     }
 
-    setSection(sectionData)
+    setSection(sectionData as Section & { venue: { name: string } })
 
     // Load rows
     const { data: rowsData } = await supabase
@@ -296,7 +297,7 @@ export default function SectionPage() {
                   <div key={item.seat.id} className="flex items-center justify-between bg-slate-700 rounded-lg p-3">
                     <div>
                       <span className="font-medium">Option {index + 1}:</span>
-                      <span className="ml-2">Section {(section as any)?.section_number}, Row {(item.seat as any).row?.row_number}, Seat {item.seat.seat_number}</span>
+                      <span className="ml-2">Section {section?.section_number}, Row {item.seat.row?.row_number}, Seat {item.seat.seat_number}</span>
                       {item.seat.price && (
                         <span className="ml-2 text-emerald-400">${item.seat.price.toLocaleString()}</span>
                       )}

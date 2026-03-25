@@ -38,7 +38,7 @@ export interface Seat {
   is_available: boolean
   created_at: string
   // Joined fields
-  row?: Row
+  row?: Row & { section?: Section }
   section?: Section
   venue?: Venue
   photo?: Photo
@@ -81,7 +81,7 @@ export interface ShareLinkItem {
   rep_notes?: string
   created_at: string
   // Joined fields
-  seat?: Seat
+  seat?: Seat & { row?: Row & { section?: Section } }
 }
 
 export interface UserVenue {
