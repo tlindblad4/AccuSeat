@@ -25,6 +25,20 @@ export default function RepDashboard() {
     }
 
     setUser(session.user)
+    
+    // Check if user is admin
+    const { data: adminData } = await supabase
+      .from('user_venues')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('role', 'admin')
+      .maybeSingle()
+    
+    if (adminData) {
+      router.push('/admin')
+      return
+    }
+    
     await loadUserVenues(session.user.id)
   }
 
@@ -36,11 +50,14 @@ export default function RepDashboard() {
         venue:venues(*)
       `)
       .eq('user_id', userId)
+      .not('venue_id', 'is', null) // Only get records with actual venues
 
     if (error) {
       console.error('Error loading venues:', error)
     } else {
-      setUserVenues(data || [])
+      // Filter out any null venues and cast properly
+      const validVenues = (data || []).filter((uv: any) => uv.venue !== null) as (UserVenue & { venue: Venue })[]
+      setUserVenues(validVenues)
     }
     setLoading(false)
   }
