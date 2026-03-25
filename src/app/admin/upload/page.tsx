@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -11,6 +11,14 @@ interface UploadProgress {
   completed: number
   failed: number
   currentFile: string
+}
+
+interface UploadedFile {
+  name: string
+  path: string
+  publicUrl: string
+  size: number
+  seatId?: string
 }
 
 export default function BulkUploadPage() {
@@ -24,8 +32,8 @@ export default function BulkUploadPage() {
   const [files, setFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState<UploadProgress | null>(null)
-  const [mappingMode, setMappingMode] = useState<'auto' | 'manual'>('auto')
-  const [seatMapping, setSeatMapping] = useState<Record<string, string>>({})
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [showMapping, setShowMapping] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -92,26 +100,6 @@ export default function BulkUploadPage() {
     if (e.target.files) {
       const fileArray = Array.from(e.target.files)
       setFiles(fileArray)
-      
-      // Auto-map files to seats based on filename
-      if (mappingMode === 'auto') {
-        const mapping: Record<string, string> = {}
-        fileArray.forEach(file => {
-          // Try to extract seat number from filename
-          // Supports: "LOWER 101_A_1.dng", "Section-101-Row-A-Seat-1.jpg", "101-A-1.jpg", "1.jpg", "1.dng"
-          // Pattern: anything followed by underscore or hyphen, then number before .extension
-          const match = file.name.match(/[\s_-](\d+)\.(jpg|jpeg|dng)$/i) || 
-                       file.name.match(/(\d+)\.(jpg|jpeg|dng)$/i)
-          if (match) {
-            const seatNum = match[1]
-            const seat = seats.find(s => s.seat_number === seatNum)
-            if (seat) {
-              mapping[file.name] = seat.id
-            }
-          }
-        })
-        setSeatMapping(mapping)
-      }
     }
   }
 
@@ -126,6 +114,8 @@ export default function BulkUploadPage() {
       currentFile: '',
     })
 
+    const uploaded: UploadedFile[] = []
+
     for (const file of files) {
       setProgress((prev) => ({
         ...prev!,
@@ -133,32 +123,8 @@ export default function BulkUploadPage() {
       }))
 
       try {
-        // Determine seat ID
-        let seatId = seatMapping[file.name]
-        
-        // If no mapping, try to find by filename
-        if (!seatId && mappingMode === 'auto') {
-          const match = file.name.match(/seat[\s_-]?(\d+)|[\s_-](\d+)\.[a-z]+$/i)
-          if (match) {
-            const seatNum = match[1] || match[2]
-            const seat = seats.find(s => s.seat_number === seatNum)
-            if (seat) {
-              seatId = seat.id
-            }
-          }
-        }
-
-        if (!seatId) {
-          console.error(`No seat mapping for ${file.name}`)
-          setProgress((prev) => ({
-            ...prev!,
-            failed: prev!.failed + 1,
-          }))
-          continue
-        }
-
-        // Upload to Supabase Storage
-        const filePath = `${selectedVenue}/${seatId}/${file.name}`
+        // Upload to Supabase Storage (unmapped folder)
+        const filePath = `${selectedVenue}/unmapped/${Date.now()}_${file.name}`
         const { error: uploadError } = await supabase.storage
           .from('seat-photos')
           .upload(filePath, file, {
@@ -175,29 +141,12 @@ export default function BulkUploadPage() {
           .from('seat-photos')
           .getPublicUrl(filePath)
 
-        // Determine file type
-        const fileExtension = file.name.split('.').pop()?.toLowerCase()
-        const isDng = fileExtension === 'dng'
-        
-        // Save to database
-        const { error: dbError } = await supabase.from('photos').upsert({
-          seat_id: seatId,
-          storage_path: filePath,
-          public_url: publicUrl,
-          file_size: file.size,
-          metadata: {
-            original_name: file.name,
-            type: file.type,
-            extension: fileExtension,
-            is_raw: isDng,
-          },
-        }, {
-          onConflict: 'seat_id',
+        uploaded.push({
+          name: file.name,
+          path: filePath,
+          publicUrl,
+          size: file.size,
         })
-
-        if (dbError) {
-          throw dbError
-        }
 
         setProgress((prev) => ({
           ...prev!,
@@ -212,7 +161,65 @@ export default function BulkUploadPage() {
       }
     }
 
+    setUploadedFiles(uploaded)
     setUploading(false)
+    setShowMapping(true)
+  }
+
+  const mapFileToSeat = async (fileIndex: number, seatId: string) => {
+    const file = uploadedFiles[fileIndex]
+    if (!file) return
+
+    // Move file to seat folder
+    const newPath = `${selectedVenue}/${seatId}/${file.name}`
+    
+    try {
+      // Copy to new location
+      const { error: copyError } = await supabase.storage
+        .from('seat-photos')
+        .copy(file.path, newPath)
+
+      if (copyError) {
+        // If copy fails, try direct upload with new path
+        console.log('Copy failed, file will remain in unmapped')
+      }
+
+      // Get public URL for new path
+      const { data: { publicUrl } } = supabase.storage
+        .from('seat-photos')
+        .getPublicUrl(newPath)
+
+      // Determine file type
+      const fileExtension = file.name.split('.').pop()?.toLowerCase()
+      const isDng = fileExtension === 'dng'
+
+      // Save to database
+      const { error: dbError } = await supabase.from('photos').upsert({
+        seat_id: seatId,
+        storage_path: newPath,
+        public_url: publicUrl,
+        file_size: file.size,
+        metadata: {
+          original_name: file.name,
+          extension: fileExtension,
+          is_raw: isDng,
+        },
+      }, {
+        onConflict: 'seat_id',
+      })
+
+      if (dbError) {
+        throw dbError
+      }
+
+      // Update local state
+      const newUploaded = [...uploadedFiles]
+      newUploaded[fileIndex] = { ...file, seatId }
+      setUploadedFiles(newUploaded)
+    } catch (error) {
+      console.error('Error mapping file:', error)
+      alert('Failed to map file to seat')
+    }
   }
 
   return (
@@ -250,87 +257,11 @@ export default function BulkUploadPage() {
           </select>
         </div>
 
-        {/* Section/Row Selection (Optional) */}
-        {selectedVenue && (
-          <div className="bg-slate-800 rounded-2xl p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">2. Select Section & Row (Optional)</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <select
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                className="px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Sections</option>
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.level} - Section {section.section_number}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedRow}
-                onChange={(e) => setSelectedRow(e.target.value)}
-                disabled={!selectedSection}
-                className="px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                <option value="">All Rows</option>
-                {rows.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    Row {row.row_number}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {selectedRow && seats.length > 0 && (
-              <div className="mt-4 p-4 bg-slate-700/50 rounded-lg">
-                <p className="text-sm text-slate-300">
-                  {seats.length} seats available in this row
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* File Upload */}
-        {selectedVenue && (
+        {selectedVenue && !showMapping && (
           <div className="bg-slate-800 rounded-2xl p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">3. Upload Photos</h2>
+            <h2 className="text-xl font-semibold mb-4">2. Upload Photos</h2>
             
-            {/* Mapping Mode */}
-            <div className="flex gap-4 mb-4">
-              <button
-                onClick={() => setMappingMode('auto')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  mappingMode === 'auto'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                Auto-Match by Filename
-              </button>
-              <button
-                onClick={() => setMappingMode('manual')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  mappingMode === 'manual'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                Manual Mapping
-              </button>
-            </div>
-
-            {mappingMode === 'auto' && (
-              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-sm text-blue-300">
-                  <strong>Auto-Match:</strong> Files will be matched to seats based on filename. 
-                  Expected format: "Section-101-Row-A-Seat-1.jpg" or just "1.jpg"
-                </p>
-              </div>
-            )}
-
             <div className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center hover:border-blue-500 transition-colors">
               <input
                 type="file"
@@ -348,7 +279,7 @@ export default function BulkUploadPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 <p className="text-lg font-medium mb-2">Drop files here or click to browse</p>
-                <p className="text-sm text-slate-400">Support for JPEG and DNG 360° photos (25MB max per file)</p>
+                <p className="text-sm text-slate-400">Support for JPEG and DNG 360° photos</p>
                 <p className="text-xs text-slate-500 mt-1">.jpg, .jpeg, .dng files accepted</p>
               </label>
             </div>
@@ -365,72 +296,143 @@ export default function BulkUploadPage() {
                         <span className="truncate max-w-xs">{file.name}</span>
                         <span className="text-slate-400 text-sm">({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
                       </div>
-                      {mappingMode === 'auto' && (
-                        <span className={`text-xs ${
-                          seatMapping[file.name] ? 'text-emerald-400' : 'text-amber-400'
-                        }`}>
-                          {seatMapping[file.name] ? 'Matched' : 'Unmatched'}
-                        </span>
-                      )}
                     </div>
                   ))}
                 </div>
               </div>
             )}
-          </div>
-        )}
 
-        {/* Upload Button */}
-        {files.length > 0 && (
-          <button
-            onClick={uploadFiles}
-            disabled={uploading}
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 rounded-xl font-semibold text-lg transition-colors"
-          >
-            {uploading ? 'Uploading...' : `Upload ${files.length} Files`}
-          </button>
-        )}
+            {/* Upload Button */}
+            {files.length > 0 && (
+              <button
+                onClick={uploadFiles}
+                disabled={uploading}
+                className="w-full mt-6 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 rounded-xl font-semibold text-lg transition-colors"
+              >
+                {uploading ? 'Uploading...' : `Upload ${files.length} Files`}
+              </button>
+            )}
 
-        {/* Progress */}
-        {progress && (
-          <div className="mt-6 bg-slate-800 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">Upload Progress</h3>
-              <span className="text-slate-400">
-                {progress.completed} / {progress.total}
-              </span>
-            </div>
-            
-            <div className="w-full bg-slate-700 rounded-full h-3 mb-4">
-              <div
-                className="bg-emerald-500 h-3 rounded-full transition-all"
-                style={{ width: `${(progress.completed / progress.total) * 100}%` }}
-              />
-            </div>
-            
-            <p className="text-sm text-slate-400 mb-2">
-              Current: {progress.currentFile}
-            </p>
-            
-            {progress.failed > 0 && (
-              <p className="text-sm text-red-400">
-                Failed: {progress.failed} files
-              </p>
+            {/* Progress */}
+            {progress && (
+              <div className="mt-6 bg-slate-800 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Upload Progress</h3>
+                  <span className="text-slate-400">
+                    {progress.completed} / {progress.total}
+                  </span>
+                </div>
+                
+                <div className="w-full bg-slate-700 rounded-full h-3 mb-4">
+                  <div
+                    className="bg-emerald-500 h-3 rounded-full transition-all"
+                    style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                  />
+                </div>
+                
+                <p className="text-sm text-slate-400 mb-2">
+                  Current: {progress.currentFile}
+                </p>
+                
+                {progress.failed > 0 && (
+                  <p className="text-sm text-red-400">
+                    Failed: {progress.failed} files
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}
 
-        {/* Success Message */}
-        {progress && progress.completed === progress.total && !uploading && (
-          <div className="mt-6 bg-emerald-500/20 border border-emerald-500/50 rounded-xl p-6 text-center">
-            <svg className="w-12 h-12 text-emerald-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <h3 className="text-xl font-semibold text-emerald-400 mb-2">Upload Complete!</h3>
-            <p className="text-slate-300">
-              {progress.completed} files uploaded successfully
-              {progress.failed > 0 && ` (${progress.failed} failed)`}
+        {/* Mapping Interface */}
+        {showMapping && (
+          <div className="bg-slate-800 rounded-2xl p-6">
+            <h2 className="text-xl font-semibold mb-4">3. Map Photos to Seats</h2>
+            <p className="text-slate-400 mb-6">
+              Select a section, row, and seat for each uploaded photo
             </p>
+
+            {/* Section/Row Selectors */}
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <select
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                className="px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white"
+              >
+                <option value="">Select Section</option>
+                {sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.level} - {section.section_number}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedRow}
+                onChange={(e) => setSelectedRow(e.target.value)}
+                disabled={!selectedSection}
+                className="px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white disabled:opacity-50"
+              >
+                <option value="">Select Row</option>
+                {rows.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    Row {row.row_number}
+                  </option>
+                ))}
+              </select>
+
+              <div className="text-sm text-slate-400 flex items-center">
+                {seats.length > 0 ? `${seats.length} seats available` : 'Select section and row'}
+              </div>
+            </div>
+
+            {/* Files to Map */}
+            <div className="space-y-4">
+              {uploadedFiles.map((file, index) => (
+                <div key={index} className={`flex items-center justify-between p-4 rounded-lg ${file.seatId ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-slate-700'}`}>
+                  <div className="flex items-center gap-4">
+                    <span className="text-slate-400">{index + 1}.</span>
+                    <div>
+                      <p className="font-medium">{file.name}</p>
+                      <p className="text-sm text-slate-400">
+                        {file.seatId ? '✓ Mapped' : 'Not mapped'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {!file.seatId && selectedRow && (
+                    <select
+                      onChange={(e) => mapFileToSeat(index, e.target.value)}
+                      className="px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white text-sm"
+                      defaultValue=""
+                    >
+                      <option value="">Select seat...</option>
+                      {seats.map((seat) => (
+                        <option key={seat.id} value={seat.id}>
+                          Seat {seat.seat_number}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  
+                  {file.seatId && (
+                    <span className="text-emerald-400 text-sm">
+                      ✓ Assigned
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Done Button */}
+            <div className="mt-6 flex gap-4">
+              <Link
+                href="/admin"
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-center transition-colors"
+              >
+                Done
+              </Link>
+            </div>
           </div>
         )}
       </main>
