@@ -29,13 +29,13 @@ export default function AdminDashboard() {
 
     setUser(session.user)
 
-    // Check if user is admin
+    // Check if user is admin (venue_id can be NULL for admins)
     const { data: userVenueData } = await supabase
       .from('user_venues')
       .select('*')
       .eq('user_id', session.user.id)
       .eq('role', 'admin')
-      .single()
+      .maybeSingle()
 
     if (!userVenueData) {
       router.push('/rep')
