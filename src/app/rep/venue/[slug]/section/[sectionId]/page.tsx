@@ -91,37 +91,61 @@ export default function SectionPage() {
   }
 
   const generateLink = async () => {
-    if (!selectedSeat) return
-
-    const { data: session } = await supabase.auth.getSession()
-    
-    const { data: linkData, error } = await supabase
-      .from('share_links')
-      .insert({
-        created_by: session.data.session?.user.id,
-        venue_id: section?.venue_id,
-        client_name: clientName,
-        client_phone: clientPhone,
-        notes: linkNotes,
-      })
-      .select()
-      .single()
-
-    if (error || !linkData) {
-      console.error('Error creating link:', error)
+    if (!selectedSeat) {
+      alert('Please select a seat first')
       return
     }
 
-    await supabase.from('share_link_items').insert({
-      share_link_id: linkData.id,
-      seat_id: selectedSeat.id,
-      option_order: 1,
-      rep_notes: linkNotes,
-    })
+    try {
+      const { data: session } = await supabase.auth.getSession()
+      
+      if (!session.data.session) {
+        alert('You must be logged in to create a link')
+        return
+      }
 
-    const url = `${window.location.origin}/view/${linkData.token}`
-    setGeneratedLink(url)
-    setShowLinkBuilder(true)
+      const { data: linkData, error } = await supabase
+        .from('share_links')
+        .insert({
+          created_by: session.data.session.user.id,
+          venue_id: section?.venue_id,
+          client_name: clientName,
+          client_phone: clientPhone,
+          notes: linkNotes,
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating link:', error)
+        alert('Error creating link: ' + error.message)
+        return
+      }
+
+      if (!linkData) {
+        alert('Failed to create link')
+        return
+      }
+
+      const { error: itemError } = await supabase.from('share_link_items').insert({
+        share_link_id: linkData.id,
+        seat_id: selectedSeat.id,
+        option_order: 1,
+        rep_notes: linkNotes,
+      })
+
+      if (itemError) {
+        console.error('Error creating link item:', itemError)
+        alert('Error creating link item: ' + itemError.message)
+        return
+      }
+
+      const url = `${window.location.origin}/view/${linkData.token}`
+      setGeneratedLink(url)
+    } catch (err: any) {
+      console.error('Unexpected error:', err)
+      alert('Unexpected error: ' + err.message)
+    }
   }
 
   const copyLink = () => {
