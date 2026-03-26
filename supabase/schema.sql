@@ -127,6 +127,43 @@ CREATE TABLE IF NOT EXISTS analytics_events (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Feedback from prospects
+CREATE TABLE IF NOT EXISTS prospect_feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    share_link_id UUID NOT NULL REFERENCES share_links(id) ON DELETE CASCADE,
+    seat_id UUID REFERENCES seats(id),
+    feedback_type TEXT NOT NULL, -- 'like', 'dislike'
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Rep notifications
+CREATE TABLE IF NOT EXISTS rep_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL, -- 'feedback', 'view', 'share'
+    title TEXT NOT NULL,
+    message TEXT,
+    share_link_id UUID REFERENCES share_links(id),
+    seat_id UUID REFERENCES seats(id),
+    read BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for notifications
+CREATE INDEX IF NOT EXISTS idx_rep_notifications_user ON rep_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_rep_notifications_read ON rep_notifications(read);
+CREATE INDEX IF NOT EXISTS idx_prospect_feedback_link ON prospect_feedback(share_link_id);
+
+-- RLS for notifications
+ALTER TABLE rep_notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own notifications" ON rep_notifications
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can update own notifications" ON rep_notifications
+    FOR UPDATE USING (user_id = auth.uid());
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_sections_venue ON sections(venue_id);
 CREATE INDEX IF NOT EXISTS idx_rows_section ON rows(section_id);

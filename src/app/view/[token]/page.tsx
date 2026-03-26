@@ -103,6 +103,16 @@ export default function SimpleViewPage() {
       seat_id: seatData.id,
     })
 
+    // Create notification for rep
+    await supabase.from('rep_notifications').insert({
+      user_id: linkData.created_by,
+      type: 'view',
+      title: `Your seat link was viewed`,
+      message: `Someone viewed ${seatData.row?.section?.venue?.name} - Section ${seatData.row?.section?.section_number}, Row ${seatData.row?.row_number}, Seat ${seatData.seat_number}`,
+      share_link_id: linkData.id,
+      seat_id: seatData.id,
+    })
+
     setLoading(false)
   }
 
@@ -128,6 +138,36 @@ export default function SimpleViewPage() {
         </div>
       </div>
     )
+  }
+
+  const handleFeedback = async (type: 'like' | 'dislike') => {
+    // Load share link data for notification
+    const { data: linkData } = await supabase
+      .from('share_links')
+      .select('*')
+      .eq('token', token)
+      .single()
+
+    if (!linkData || !seat) return
+
+    // Save feedback
+    await supabase.from('prospect_feedback').insert({
+      share_link_id: linkData.id,
+      seat_id: seat.id,
+      feedback_type: type,
+    })
+
+    // Create notification for rep
+    await supabase.from('rep_notifications').insert({
+      user_id: linkData.created_by,
+      type: 'feedback',
+      title: type === 'like' ? '👍 Prospect liked a seat!' : '👎 Prospect passed on a seat',
+      message: `${seat.venue_name} - Section ${seat.section_number}, Row ${seat.row_number}, Seat ${seat.seat_number}`,
+      share_link_id: linkData.id,
+      seat_id: seat.id,
+    })
+
+    alert(type === 'like' ? 'Thanks! The rep has been notified.' : 'Thanks for your feedback!')
   }
 
   return (
@@ -237,13 +277,13 @@ export default function SimpleViewPage() {
           <h3 className="font-semibold mb-4">What do you think?</h3>
           <div className="flex gap-3">
             <button
-              onClick={() => alert('Thanks for your feedback!')}
+              onClick={() => handleFeedback('like')}
               className="flex-1 py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-600/50 rounded-lg font-medium text-emerald-400 transition-colors"
             >
               👍 I like it
             </button>
             <button
-              onClick={() => alert('Thanks for your feedback!')}
+              onClick={() => handleFeedback('dislike')}
               className="flex-1 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 rounded-lg font-medium text-red-400 transition-colors"
             >
               👎 Not for me

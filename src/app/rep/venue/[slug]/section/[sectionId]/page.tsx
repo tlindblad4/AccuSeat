@@ -67,9 +67,15 @@ export default function SectionPage() {
         .from('seats')
         .select('*')
         .in('row_id', rowsData.map(r => r.id))
-        .order('seat_number')
 
-      setSeats(seatsData || [])
+      // Sort numerically by seat_number
+      const sortedSeats = (seatsData || []).sort((a, b) => {
+        const numA = parseInt(a.seat_number) || 0
+        const numB = parseInt(b.seat_number) || 0
+        return numA - numB
+      })
+
+      setSeats(sortedSeats)
       
       // Select first row by default
       if (rowsData.length > 0) {
