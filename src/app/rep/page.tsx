@@ -87,6 +87,12 @@ export default function RepDashboard() {
             </Link>
             <span className="text-slate-400">|</span>
             <span className="text-slate-300">Sales Portal</span>
+            <Link 
+              href="/admin" 
+              className="ml-4 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-slate-300 hover:text-white transition-colors"
+            >
+              ← Admin Portal
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-slate-400 text-sm">{user?.email}</span>
