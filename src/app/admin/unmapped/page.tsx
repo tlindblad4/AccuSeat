@@ -128,20 +128,47 @@ export default function UnmappedPhotosPage() {
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
       const isDng = fileExtension === 'dng'
 
-      // Save to database
-      const { error: dbError } = await supabase.from('photos').upsert({
-        seat_id: seatId,
-        storage_path: file.path,
-        public_url: file.publicUrl,
-        file_size: file.size,
-        metadata: {
-          original_name: file.name,
-          extension: fileExtension,
-          is_raw: isDng,
-        },
-      }, {
-        onConflict: 'seat_id',
-      })
+      // Save to database (insert only, no upsert since no unique constraint)
+      // First check if photo already exists for this seat
+      const { data: existingPhoto } = await supabase
+        .from('photos')
+        .select('id')
+        .eq('seat_id', seatId)
+        .maybeSingle()
+
+      let dbError
+
+      if (existingPhoto) {
+        // Update existing
+        const { error } = await supabase
+          .from('photos')
+          .update({
+            storage_path: file.path,
+            public_url: file.publicUrl,
+            file_size: file.size,
+            metadata: {
+              original_name: file.name,
+              extension: fileExtension,
+              is_raw: isDng,
+            },
+          })
+          .eq('seat_id', seatId)
+        dbError = error
+      } else {
+        // Insert new
+        const { error } = await supabase.from('photos').insert({
+          seat_id: seatId,
+          storage_path: file.path,
+          public_url: file.publicUrl,
+          file_size: file.size,
+          metadata: {
+            original_name: file.name,
+            extension: fileExtension,
+            is_raw: isDng,
+          },
+        })
+        dbError = error
+      }
 
       if (dbError) {
         throw dbError

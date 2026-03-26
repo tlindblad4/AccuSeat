@@ -126,7 +126,7 @@ export default function BulkUploadPage() {
         // Upload to Supabase Storage (unmapped folder)
         const filePath = `${selectedVenue}/unmapped/${Date.now()}_${file.name}`
         console.log('Uploading:', file.name, 'to', filePath)
-        
+
         const { error: uploadError, data: uploadData } = await supabase.storage
           .from('seat-photos')
           .upload(filePath, file, {
@@ -138,7 +138,7 @@ export default function BulkUploadPage() {
           console.error('Upload error:', uploadError)
           throw new Error(`Upload failed: ${uploadError.message}`)
         }
-        
+
         console.log('Upload success:', uploadData)
 
         // Get public URL
@@ -176,29 +176,55 @@ export default function BulkUploadPage() {
     if (!file) return
 
     console.log('Mapping file:', file.name, 'to seat:', seatId)
-    
+
     // Use the original path (unmapped) - no need to copy
     // The photo record just needs to reference the seat_id
-    
+
     try {
       // Determine file type
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
       const isDng = fileExtension === 'dng'
+      
+      // Save to database (check for existing first since no unique constraint)
+      const { data: existingPhoto } = await supabase
+        .from('photos')
+        .select('id')
+        .eq('seat_id', seatId)
+        .maybeSingle()
 
-      // Save to database with original path
-      const { error: dbError } = await supabase.from('photos').upsert({
-        seat_id: seatId,
-        storage_path: file.path,
-        public_url: file.publicUrl,
-        file_size: file.size,
-        metadata: {
-          original_name: file.name,
-          extension: fileExtension,
-          is_raw: isDng,
-        },
-      }, {
-        onConflict: 'seat_id',
-      })
+      let dbError
+
+      if (existingPhoto) {
+        // Update existing
+        const { error } = await supabase
+          .from('photos')
+          .update({
+            storage_path: file.path,
+            public_url: file.publicUrl,
+            file_size: file.size,
+            metadata: {
+              original_name: file.name,
+              extension: fileExtension,
+              is_raw: isDng,
+            },
+          })
+          .eq('seat_id', seatId)
+        dbError = error
+      } else {
+        // Insert new
+        const { error } = await supabase.from('photos').insert({
+          seat_id: seatId,
+          storage_path: file.path,
+          public_url: file.publicUrl,
+          file_size: file.size,
+          metadata: {
+            original_name: file.name,
+            extension: fileExtension,
+            is_raw: isDng,
+          },
+        })
+        dbError = error
+      }
 
       if (dbError) {
         console.error('Database error:', dbError)
@@ -209,7 +235,7 @@ export default function BulkUploadPage() {
       const newUploaded = [...uploadedFiles]
       newUploaded[fileIndex] = { ...file, seatId }
       setUploadedFiles(newUploaded)
-      
+
       console.log('Successfully mapped file to seat')
     } catch (error: any) {
       console.error('Error mapping file:', error)
@@ -256,7 +282,7 @@ export default function BulkUploadPage() {
         {selectedVenue && !showMapping && (
           <div className="bg-slate-800 rounded-2xl p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">2. Upload Photos</h2>
-            
+
             <div className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center hover:border-blue-500 transition-colors">
               <input
                 type="file"
@@ -317,18 +343,18 @@ export default function BulkUploadPage() {
                     {progress.completed} / {progress.total}
                   </span>
                 </div>
-                
+
                 <div className="w-full bg-slate-700 rounded-full h-3 mb-4">
                   <div
                     className="bg-emerald-500 h-3 rounded-full transition-all"
                     style={{ width: `${(progress.completed / progress.total) * 100}%` }}
                   />
                 </div>
-                
+
                 <p className="text-sm text-slate-400 mb-2">
                   Current: {progress.currentFile}
                 </p>
-                
+
                 {progress.failed > 0 && (
                   <p className="text-sm text-red-400">
                     Failed: {progress.failed} files
@@ -394,7 +420,7 @@ export default function BulkUploadPage() {
                       </p>
                     </div>
                   </div>
-                  
+
                   {!file.seatId && selectedRow && (
                     <select
                       onChange={(e) => mapFileToSeat(index, e.target.value)}
@@ -409,7 +435,7 @@ export default function BulkUploadPage() {
                       ))}
                     </select>
                   )}
-                  
+
                   {file.seatId && (
                     <span className="text-emerald-400 text-sm">
                       ✓ Assigned
