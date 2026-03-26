@@ -3,33 +3,39 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ShareLink, ShareLinkItem, Photo } from '@/types'
 import { PanoramaViewer } from '@/components/viewer/PanoramaViewer'
 
-export default function ViewPage() {
+interface SharedSeat {
+  id: string
+  seat_number: string
+  price?: number
+  plan_type?: string
+  term_length?: string
+  payment_plan?: string
+  section_number?: string
+  row_number?: string
+  venue_name?: string
+  photo_url?: string
+  rep_notes?: string
+}
+
+export default function SimpleViewPage() {
   const params = useParams()
   const token = params.token as string
 
-  const [shareLink, setShareLink] = useState<ShareLink | null>(null)
-  const [items, setItems] = useState<(ShareLinkItem & { photo?: Photo })[]>([])
-  const [selectedOption, setSelectedOption] = useState(0)
+  const [seat, setSeat] = useState<SharedSeat | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showNotes, setShowNotes] = useState(false)
 
   useEffect(() => {
-    loadShareLink()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadSharedSeat()
   }, [token])
 
-  const loadShareLink = async () => {
+  const loadSharedSeat = async () => {
     // Load share link
     const { data: linkData } = await supabase
       .from('share_links')
-      .select(`
-        *,
-        venue:venues(*)
-      `)
+      .select('*')
       .eq('token', token)
       .single()
 
@@ -46,61 +52,58 @@ export default function ViewPage() {
       return
     }
 
-    setShareLink(linkData)
-
-    // Load items with seats and photos
-    const { data: itemsData } = await supabase
+    // Load the first (and only) item
+    const { data: itemData } = await supabase
       .from('share_link_items')
       .select(`
         *,
         seat:seats(
           *,
-          row:rows(*, section:sections(*))
+          row:rows(*, section:sections(*, venue:venues(*)))
         )
       `)
       .eq('share_link_id', linkData.id)
       .order('option_order')
+      .limit(1)
+      .single()
 
-    if (itemsData) {
-      // Load photos for each seat
-      const itemsWithPhotos: (ShareLinkItem & { photo?: Photo })[] = await Promise.all(
-        itemsData.map(async (item) => {
-          const { data: photoData } = await supabase
-            .from('photos')
-            .select('*')
-            .eq('seat_id', item.seat_id)
-            .single()
-          
-          return { ...item, photo: photoData || undefined }
-        })
-      )
-      
-      setItems(itemsWithPhotos)
+    if (!itemData || !itemData.seat) {
+      setError('No seat found')
+      setLoading(false)
+      return
     }
+
+    const seatData = itemData.seat as any
+
+    // Load photo for this seat
+    const { data: photoData } = await supabase
+      .from('photos')
+      .select('*')
+      .eq('seat_id', seatData.id)
+      .single()
+
+    setSeat({
+      id: seatData.id,
+      seat_number: seatData.seat_number,
+      price: seatData.price,
+      plan_type: seatData.plan_type,
+      term_length: seatData.term_length,
+      payment_plan: seatData.payment_plan,
+      section_number: seatData.row?.section?.section_number,
+      row_number: seatData.row?.row_number,
+      venue_name: seatData.row?.section?.venue?.name,
+      photo_url: photoData?.public_url,
+      rep_notes: itemData.rep_notes,
+    })
 
     // Track view
     await supabase.from('analytics_events').insert({
       share_link_id: linkData.id,
       event_type: 'view',
+      seat_id: seatData.id,
     })
-
-    // Increment view count
-    await supabase.rpc('increment_view_count', { link_id: linkData.id })
 
     setLoading(false)
-  }
-
-  const handleFeedback = async (type: 'like' | 'dislike') => {
-    if (!shareLink) return
-
-    await supabase.from('analytics_events').insert({
-      share_link_id: shareLink.id,
-      event_type: type,
-      seat_id: items[selectedOption]?.seat_id,
-    })
-
-    // Show feedback confirmation
-    alert(type === 'like' ? 'Thanks for your feedback!' : 'Thanks for letting us know!')
   }
 
   if (loading) {
@@ -111,7 +114,7 @@ export default function ViewPage() {
     )
   }
 
-  if (error) {
+  if (error || !seat) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
         <div className="text-center">
@@ -121,13 +124,11 @@ export default function ViewPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Link Error</h1>
-          <p className="text-slate-400">{error}</p>
+          <p className="text-slate-400">{error || 'Seat not found'}</p>
         </div>
       </div>
     )
   }
-
-  const currentItem = items[selectedOption]
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -137,172 +138,116 @@ export default function ViewPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="text-2xl font-bold text-blue-400">AccuSeat</div>
-              <span className="text-slate-400">|</span>
-              <span className="text-slate-300">{(shareLink as any)?.venue?.name}</span>
+              {seat.venue_name && (
+                <>
+                  <span className="text-slate-400">|</span>
+                  <span className="text-slate-300">{seat.venue_name}</span>
+                </>
+              )}
             </div>
-            {shareLink?.client_name && (
-              <div className="text-sm text-slate-400">
-                Prepared for: <span className="text-white">{shareLink.client_name}</span>
-              </div>
-            )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Option Selector */}
-        {items.length > 1 && (
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2">
-              {items.map((item, index) => (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedOption(index)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    selectedOption === index
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  Option {index + 1}
-                </button>
-              ))}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 360° Viewer */}
+        {seat.photo_url ? (
+          <div className="bg-slate-800 rounded-2xl overflow-hidden mb-6">
+            <div className="h-[500px] lg:h-[600px]">
+              <PanoramaViewer imageUrl={seat.photo_url} />
             </div>
+            <div className="p-4 bg-slate-800 border-t border-slate-700">
+              <div className="flex items-center gap-3 mb-2">
+                <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm font-medium text-white">
+                  Move your phone to look around
+                </p>
+              </div>
+              <p className="text-xs text-slate-400">
+                Tilt and rotate your phone to explore this seat&apos;s view
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="h-[400px] bg-slate-800 rounded-2xl flex items-center justify-center mb-6">
+            <p className="text-slate-400">Photo not available</p>
           </div>
         )}
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* 360° Viewer */}
-          <div className="lg:col-span-2">
-            {currentItem?.photo ? (
-              <div className="bg-slate-800 rounded-2xl overflow-hidden">
-                <div className="h-[500px] lg:h-[600px]">
-                  <PanoramaViewer imageUrl={currentItem.photo.public_url} />
-                </div>
-                <div className="p-4 bg-slate-800 border-t border-slate-700">
-                  <div className="flex items-center gap-3 mb-2">
-                    <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-sm font-medium text-white">
-                      Move your phone to look around
-                    </p>
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    On mobile: Tilt and rotate your phone to explore the 360° view
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="h-[500px] bg-slate-800 rounded-2xl flex items-center justify-center">
-                <p className="text-slate-400">No photo available</p>
+        {/* Seat Info */}
+        <div className="bg-slate-800 rounded-xl p-6">
+          <h2 className="text-xl font-semibold mb-4">Your Seat</h2>
+          
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div>
+              <p className="text-sm text-slate-400">Section</p>
+              <p className="text-lg font-medium">{seat.section_number || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-400">Row</p>
+              <p className="text-lg font-medium">{seat.row_number || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-400">Seat</p>
+              <p className="text-lg font-medium">{seat.seat_number}</p>
+            </div>
+            {seat.price && (
+              <div>
+                <p className="text-sm text-slate-400">Price</p>
+                <p className="text-xl font-bold text-emerald-400">
+                  ${seat.price.toLocaleString()}
+                </p>
               </div>
             )}
           </div>
 
-          {/* Info Panel */}
-          <div className="space-y-6">
-            {/* Seat Details */}
-            <div className="bg-slate-800 rounded-xl p-6">
-              <h2 className="text-xl font-semibold mb-4">
-                {items.length > 1 ? `Option ${selectedOption + 1}` : 'Seat Details'}
-              </h2>
-              
-              {currentItem?.seat && (
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Section</span>
-                    <span className="font-medium">{currentItem.seat.row?.section?.section_number}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Row</span>
-                    <span className="font-medium">{currentItem.seat.row?.row_number}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Seat</span>
-                    <span className="font-medium">{currentItem.seat.seat_number}</span>
-                  </div>
-                  {currentItem.seat.price && (
-                    <div className="flex justify-between pt-3 border-t border-slate-700">
-                      <span className="text-slate-400">Price</span>
-                      <span className="text-2xl font-bold text-emerald-400">
-                        ${currentItem.seat.price.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                  {currentItem.seat.plan_type && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Plan</span>
-                      <span className="font-medium">{currentItem.seat.plan_type}</span>
-                    </div>
-                  )}
-                  {currentItem.seat.term_length && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Term</span>
-                      <span className="font-medium">{currentItem.seat.term_length}</span>
-                    </div>
-                  )}
-                  {currentItem.seat.payment_plan && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Payment</span>
-                      <span className="font-medium">{currentItem.seat.payment_plan}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+          {seat.plan_type && (
+            <div className="mb-4">
+              <p className="text-sm text-slate-400">Plan</p>
+              <p className="font-medium">{seat.plan_type}</p>
             </div>
+          )}
 
-            {/* Rep Notes */}
-            {showNotes && (currentItem?.rep_notes || shareLink?.notes) && (
-              <div className="bg-slate-800 rounded-xl p-6">
-                <h3 className="font-semibold mb-3">Notes from your rep</h3>
-                {currentItem?.rep_notes && (
-                  <p className="text-slate-300 mb-3">{currentItem.rep_notes}</p>
-                )}
-                {shareLink?.notes && (
-                  <p className="text-slate-300">{shareLink.notes}</p>
-                )}
-              </div>
-            )}
-
-            {/* Feedback */}
-            <div className="bg-slate-800 rounded-xl p-6">
-              <h3 className="font-semibold mb-4">What do you think?</h3>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleFeedback('like')}
-                  className="flex-1 py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-600/50 rounded-lg font-medium text-emerald-400 transition-colors flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                  </svg>
-                  Like
-                </button>
-                <button
-                  onClick={() => handleFeedback('dislike')}
-                  className="flex-1 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 rounded-lg font-medium text-red-400 transition-colors flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
-                  </svg>
-                  Pass
-                </button>
-              </div>
+          {seat.term_length && (
+            <div className="mb-4">
+              <p className="text-sm text-slate-400">Term</p>
+              <p className="font-medium">{seat.term_length}</p>
             </div>
+          )}
 
-            {/* Contact */}
-            <div className="bg-slate-800 rounded-xl p-6 text-center">
-              <p className="text-slate-400 text-sm mb-3">
-                Interested in this seat?
-              </p>
-              <a
-                href={`tel:${shareLink?.client_phone || ''}`}
-                className="inline-block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors"
-              >
-                Contact Your Rep
-              </a>
+          {seat.payment_plan && (
+            <div className="mb-4">
+              <p className="text-sm text-slate-400">Payment</p>
+              <p className="font-medium">{seat.payment_plan}</p>
             </div>
+          )}
+
+          {seat.rep_notes && (
+            <div className="mt-6 p-4 bg-slate-700/50 rounded-lg">
+              <p className="text-sm text-slate-400 mb-1">Notes from your rep</p>
+              <p className="text-slate-200">{seat.rep_notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Feedback */}
+        <div className="mt-6 bg-slate-800 rounded-xl p-6">
+          <h3 className="font-semibold mb-4">What do you think?</h3>
+          <div className="flex gap-3">
+            <button
+              onClick={() => alert('Thanks for your feedback!')}
+              className="flex-1 py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-600/50 rounded-lg font-medium text-emerald-400 transition-colors"
+            >
+              👍 I like it
+            </button>
+            <button
+              onClick={() => alert('Thanks for your feedback!')}
+              className="flex-1 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 rounded-lg font-medium text-red-400 transition-colors"
+            >
+              👎 Not for me
+            </button>
           </div>
         </div>
       </main>

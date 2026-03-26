@@ -96,10 +96,8 @@ export default function SectionPage() {
   const addToLink = () => {
     if (!selectedSeat) return
     
-    const exists = linkItems.find(item => item.seat.id === selectedSeat.id)
-    if (exists) return
-
-    setLinkItems([...linkItems, { seat: selectedSeat, notes: '' }])
+    // Only allow one seat per link
+    setLinkItems([{ seat: selectedSeat, notes: '' }])
     setShowLinkBuilder(true)
   }
 
