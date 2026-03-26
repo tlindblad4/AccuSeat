@@ -7,6 +7,12 @@ interface PanoramaViewerProps {
   className?: string
 }
 
+declare global {
+  interface Window {
+    pannellum?: any
+  }
+}
+
 export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
@@ -19,41 +25,69 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
     setLoading(true)
     setError(null)
 
-    // Dynamically import pannellum to avoid SSR issues
-    import('pannellum').then((module: any) => {
-      const pannellum = module.default || module
-      if (containerRef.current && !viewerRef.current) {
-        try {
-          viewerRef.current = pannellum.viewer(containerRef.current, {
-            type: 'equirectangular',
-            panorama: imageUrl,
-            autoLoad: true,
-            compass: false,
-            showFullscreenCtrl: true,
-            showZoomCtrl: true,
-            mouseZoom: true,
-            doubleClickZoom: true,
-            draggable: true,
-            disableKeyboardCtrl: false,
-            touchmoveTwoFingers: false,
-            deviceOrientationControl: true,
-            friction: 0.8,
-            pitch: 0,
-            yaw: 0,
-            hfov: 100,
-          })
-          setLoading(false)
-        } catch (err: any) {
-          console.error('Pannellum error:', err)
-          setError(err.message || 'Failed to load viewer')
-          setLoading(false)
-        }
+    // Load pannellum script dynamically
+    const loadPannellum = async () => {
+      // Check if already loaded
+      if (window.pannellum) {
+        initViewer()
+        return
       }
-    }).catch((err) => {
-      console.error('Import error:', err)
-      setError('Failed to load viewer library')
-      setLoading(false)
-    })
+
+      // Load CSS
+      if (!document.getElementById('pannellum-css')) {
+        const link = document.createElement('link')
+        link.id = 'pannellum-css'
+        link.rel = 'stylesheet'
+        link.href = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css'
+        document.head.appendChild(link)
+      }
+
+      // Load JS
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js'
+      script.onload = () => initViewer()
+      script.onerror = () => {
+        setError('Failed to load 360° viewer')
+        setLoading(false)
+      }
+      document.body.appendChild(script)
+    }
+
+    const initViewer = () => {
+      if (!containerRef.current || !window.pannellum) {
+        setError('Viewer not available')
+        setLoading(false)
+        return
+      }
+
+      try {
+        viewerRef.current = window.pannellum.viewer(containerRef.current, {
+          type: 'equirectangular',
+          panorama: imageUrl,
+          autoLoad: true,
+          compass: false,
+          showFullscreenCtrl: true,
+          showZoomCtrl: true,
+          mouseZoom: true,
+          doubleClickZoom: true,
+          draggable: true,
+          disableKeyboardCtrl: false,
+          touchmoveTwoFingers: false,
+          deviceOrientationControl: true,
+          friction: 0.8,
+          pitch: 0,
+          yaw: 0,
+          hfov: 100,
+        })
+        setLoading(false)
+      } catch (err: any) {
+        console.error('Pannellum error:', err)
+        setError(err.message || 'Failed to load viewer')
+        setLoading(false)
+      }
+    }
+
+    loadPannellum()
 
     return () => {
       if (viewerRef.current) {
