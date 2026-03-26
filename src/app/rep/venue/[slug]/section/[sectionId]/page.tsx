@@ -26,6 +26,8 @@ export default function SectionPage() {
   const [clientName, setClientName] = useState('')
   const [linkNotes, setLinkNotes] = useState('')
   const [generatedLink, setGeneratedLink] = useState('')
+  const [sendingSms, setSendingSms] = useState(false)
+  const [smsStatus, setSmsStatus] = useState<string | null>(null)
 
   useEffect(() => {
     loadSectionData()
@@ -140,6 +142,40 @@ export default function SectionPage() {
     // Generate URL
     const url = `${window.location.origin}/view/${linkData.token}`
     setGeneratedLink(url)
+  }
+
+  const sendSMS = async () => {
+    if (!clientPhone || !generatedLink) return
+
+    setSendingSms(true)
+    setSmsStatus(null)
+
+    try {
+      const response = await fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: clientPhone,
+          message: linkNotes || `Hi ${clientName}, check out this seat view!`,
+          linkUrl: generatedLink,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setSmsStatus('SMS sent successfully!')
+      } else if (data.linkUrl) {
+        // SMS not configured but we have the link
+        setSmsStatus('SMS not configured. Copy the link below to send manually.')
+      } else {
+        setSmsStatus('Failed to send SMS: ' + (data.error || 'Unknown error'))
+      }
+    } catch (error: any) {
+      setSmsStatus('Error: ' + error.message)
+    } finally {
+      setSendingSms(false)
+    }
   }
 
   const filteredSeats = selectedRow
@@ -360,22 +396,56 @@ export default function SectionPage() {
                 Generate Share Link
               </button>
             ) : (
-              <div className="bg-slate-700 rounded-lg p-4">
-                <p className="text-sm text-slate-400 mb-2">Share this link:</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={generatedLink}
-                    readOnly
-                    className="flex-1 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white"
-                  />
-                  <button
-                    onClick={() => navigator.clipboard.writeText(generatedLink)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
-                  >
-                    Copy
-                  </button>
+              <div className="space-y-4">
+                <div className="bg-slate-700 rounded-lg p-4">
+                  <p className="text-sm text-slate-400 mb-2">Link generated:</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={generatedLink}
+                      readOnly
+                      className="flex-1 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white"
+                    />
+                    <button
+                      onClick={() => navigator.clipboard.writeText(generatedLink)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                    >
+                      Copy
+                    </button>
+                  </div>
                 </div>
+
+                {clientPhone && (
+                  <button
+                    onClick={sendSMS}
+                    disabled={sendingSms}
+                    className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    {sendingSms ? (
+                      <>
+                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Send via SMS
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {smsStatus && (
+                  <div className={`p-3 rounded-lg text-sm ${
+                    smsStatus.includes('success') 
+                      ? 'bg-emerald-500/20 text-emerald-400' 
+                      : 'bg-amber-500/20 text-amber-400'
+                  }`}>
+                    {smsStatus}
+                  </div>
+                )}
               </div>
             )}
           </div>
