@@ -5,14 +5,23 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Venue, UserVenue } from '@/types'
+import { 
+  Building2, 
+  Users, 
+  Upload, 
+  MapPin, 
+  TrendingUp,
+  Bell,
+  LogOut,
+  Plus,
+  ArrowRight
+} from 'lucide-react'
 
 export default function AdminDashboard() {
   const [venues, setVenues] = useState<Venue[]>([])
-  const [users, setUsers] = useState<any[]>([])
   const [userVenues, setUserVenues] = useState<(UserVenue & { user: any; venue: Venue })[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -28,21 +37,6 @@ export default function AdminDashboard() {
     }
 
     setUser(session.user)
-
-    // Check if user is admin (venue_id can be NULL for admins)
-    const { data: userVenueData } = await supabase
-      .from('user_venues')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('role', 'admin')
-      .maybeSingle()
-
-    if (!userVenueData) {
-      router.push('/rep')
-      return
-    }
-
-    setIsAdmin(true)
     await loadData()
   }
 
@@ -75,200 +69,189 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-2xl font-bold text-blue-400">
-              AccuSeat
-            </Link>
-            <span className="text-slate-400">|</span>
-            <span className="text-slate-300">Admin Portal</span>
-            <Link 
-              href="/rep" 
-              className="ml-4 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-slate-300 hover:text-white transition-colors"
-            >
-              Sales Portal →
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-slate-400 text-sm">{user?.email}</span>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-slate-400 hover:text-white transition-colors"
-            >
-              Logout
-            </button>
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <Building2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">Admin Portal</h1>
+                <p className="text-sm text-slate-500">Manage venues and users</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Link 
+                href="/rep" 
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 font-medium transition-all"
+              >
+                Sales Portal
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
-
         {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-slate-800 rounded-xl p-6">
-            <p className="text-slate-400 text-sm mb-1">Venues</p>
-            <p className="text-3xl font-bold">{venues.length}</p>
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <div className="card-premium p-6 flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900">{venues.length}</p>
+              <p className="text-sm text-slate-500">Venues</p>
+            </div>
           </div>
-          <div className="bg-slate-800 rounded-xl p-6">
-            <p className="text-slate-400 text-sm mb-1">Users</p>
-            <p className="text-3xl font-bold">{userVenues.length}</p>
+          <div className="card-premium p-6 flex items-center gap-4">
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+              <Users className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900">{userVenues.length}</p>
+              <p className="text-sm text-slate-500">Users</p>
+            </div>
           </div>
-          <div className="bg-slate-800 rounded-xl p-6">
-            <p className="text-slate-400 text-sm mb-1">Admins</p>
-            <p className="text-3xl font-bold">{userVenues.filter(uv => uv.role === 'admin').length}</p>
+          <div className="card-premium p-6 flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900">{userVenues.filter(uv => uv.role === 'admin').length}</p>
+              <p className="text-sm text-slate-500">Admins</p>
+            </div>
           </div>
-          <div className="bg-slate-800 rounded-xl p-6">
-            <p className="text-slate-400 text-sm mb-1">Reps</p>
-            <p className="text-3xl font-bold">{userVenues.filter(uv => uv.role === 'rep').length}</p>
+          <div className="card-premium p-6 flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+              <Users className="w-6 h-6 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900">{userVenues.filter(uv => uv.role === 'rep').length}</p>
+              <p className="text-sm text-slate-500">Reps</p>
+            </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Link
             href="/admin/venues/new"
-            className="bg-blue-600 hover:bg-blue-700 rounded-xl p-6 transition-colors"
+            className="group card-premium p-6 hover:scale-[1.02] transition-all duration-300"
           >
-            <div className="flex items-center gap-3">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <div>
-                <p className="font-semibold">Add Venue</p>
-                <p className="text-sm text-blue-200">Create a new venue</p>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
+                <Plus className="w-7 h-7 text-white" />
               </div>
-            </div>
-          </Link>
-
-          <Link
-            href="/admin/upload"
-            className="bg-emerald-600 hover:bg-emerald-700 rounded-xl p-6 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
               <div>
-                <p className="font-semibold">Upload Photos</p>
-                <p className="text-sm text-emerald-200">Upload new 360° photos</p>
+                <h3 className="font-bold text-slate-900">Add Venue</h3>
+                <p className="text-sm text-slate-500">Create a new venue</p>
               </div>
             </div>
           </Link>
 
           <Link
             href="/admin/unmapped"
-            className="bg-amber-600 hover:bg-amber-700 rounded-xl p-6 transition-colors"
+            className="group card-premium p-6 hover:scale-[1.02] transition-all duration-300"
           >
-            <div className="flex items-center gap-3">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
+                <MapPin className="w-7 h-7 text-white" />
+              </div>
               <div>
-                <p className="font-semibold">Map Photos</p>
-                <p className="text-sm text-amber-200">Map uploaded photos to seats</p>
+                <h3 className="font-bold text-slate-900">Map Photos</h3>
+                <p className="text-sm text-slate-500">Assign photos to seats</p>
               </div>
             </div>
           </Link>
 
           <Link
             href="/admin/users/new"
-            className="bg-purple-600 hover:bg-purple-700 rounded-xl p-6 transition-colors"
+            className="group card-premium p-6 hover:scale-[1.02] transition-all duration-300"
           >
-            <div className="flex items-center gap-3">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/25 group-hover:scale-110 transition-transform">
+                <Users className="w-7 h-7 text-white" />
+              </div>
               <div>
-                <p className="font-semibold">Assign User</p>
-                <p className="text-sm text-purple-200">Assign to venue</p>
+                <h3 className="font-bold text-slate-900">Assign User</h3>
+                <p className="text-sm text-slate-500">Give access to venue</p>
               </div>
             </div>
           </Link>
         </div>
 
         {/* Venues List */}
-        <div className="bg-slate-800 rounded-2xl overflow-hidden mb-8">
-          <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Venues</h2>
-            <Link href="/admin/venues" className="text-blue-400 hover:text-blue-300 text-sm">
+        <div className="card-premium overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900">Venues</h2>
+            <Link href="/admin/venues" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
               View All →
             </Link>
           </div>
-          <div className="divide-y divide-slate-700">
+          <div className="divide-y divide-slate-100">
             {venues.slice(0, 5).map((venue) => (
-              <div key={venue.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-750">
-                <div>
-                  <p className="font-medium">{venue.name}</p>
-                  <p className="text-sm text-slate-400">{venue.location}</p>
+              <div key={venue.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center">
+                    <span className="text-lg font-bold text-slate-600">{venue.name.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">{venue.name}</p>
+                    <p className="text-sm text-slate-500">{venue.location}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-sm text-slate-400">
+                  <span className="text-sm text-slate-500">
                     {venue.total_seats?.toLocaleString() || 0} seats
                   </span>
-                  <Link
-                    href={`/admin/venues/${venue.id}/setup`}
-                    className="text-sm text-emerald-400 hover:text-emerald-300"
-                  >
-                    Setup
-                  </Link>
-                  <Link
-                    href={`/admin/upload`}
-                    className="text-sm text-blue-400 hover:text-blue-300"
-                  >
-                    Upload
-                  </Link>
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/admin/venues/${venue.id}/setup`}
+                      className="px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    >
+                      Setup
+                    </Link>
+                    <Link
+                      href="/admin/unmapped"
+                      className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      Upload
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
             {venues.length === 0 && (
-              <div className="px-6 py-8 text-center text-slate-400">
-                No venues yet. Create your first venue to get started.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Users List */}
-        <div className="bg-slate-800 rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Users</h2>
-            <Link href="/admin/users" className="text-blue-400 hover:text-blue-300 text-sm">
-              View All →
-            </Link>
-          </div>
-          <div className="divide-y divide-slate-700">
-            {userVenues.slice(0, 5).map((uv) => (
-              <div key={uv.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-750">
-                <div>
-                  <p className="font-medium">{(uv as any).user?.email || 'Unknown'}</p>
-                  <p className="text-sm text-slate-400">
-                    {uv.venue.name} • {uv.role}
-                  </p>
+              <div className="px-6 py-12 text-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="w-8 h-8 text-slate-400" />
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  uv.role === 'admin' 
-                    ? 'bg-purple-500/20 text-purple-400' 
-                    : 'bg-blue-500/20 text-blue-400'
-                }`}>
-                  {uv.role}
-                </span>
-              </div>
-            ))}
-            {userVenues.length === 0 && (
-              <div className="px-6 py-8 text-center text-slate-400">
-                No users yet. Add users to give them access to venues.
+                <p className="text-slate-500 mb-4">No venues yet</p>
+                <Link
+                  href="/admin/venues/new"
+                  className="btn-primary inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Your First Venue
+                </Link>
               </div>
             )}
           </div>

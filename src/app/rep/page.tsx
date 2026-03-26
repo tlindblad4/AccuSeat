@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Venue, UserVenue } from '@/types'
+import { 
+  Building2, 
+  ArrowRight, 
+  LogOut, 
+  Bell,
+  MapPin,
+  Eye
+} from 'lucide-react'
 
 export default function RepDashboard() {
   const [userVenues, setUserVenues] = useState<(UserVenue & { venue: Venue })[]>([])
@@ -25,8 +33,6 @@ export default function RepDashboard() {
     }
 
     setUser(session.user)
-    
-    // Allow admins to view sales portal too (no redirect)
     await loadUserVenues(session.user.id)
   }
 
@@ -38,7 +44,6 @@ export default function RepDashboard() {
         venue:venues(*)
       `)
       .eq('user_id', userId)
-      .not('venue_id', 'is', null) // Only get records with actual venues
 
     if (error) {
       console.error('Error loading venues:', error)
@@ -58,71 +63,64 @@ export default function RepDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-2xl font-bold text-blue-400">
-              AccuSeat
-            </Link>
-            <span className="text-slate-400">|</span>
-            <span className="text-slate-300">Sales Portal</span>
-            <Link 
-              href="/admin" 
-              className="ml-4 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-slate-300 hover:text-white transition-colors"
-            >
-              ← Admin Portal
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/rep/notifications"
-              className="relative p-2 text-slate-400 hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </Link>
-            <span className="text-slate-400 text-sm">{user?.email}</span>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-slate-400 hover:text-white transition-colors"
-            >
-              Logout
-            </button>
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <Eye className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">Sales Portal</h1>
+                <p className="text-sm text-slate-500">Browse seats and share with clients</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Link 
+                href="/admin" 
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 font-medium transition-all"
+              >
+                <Building2 className="w-4 h-4" />
+                Admin
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            Welcome, {user?.email?.split('@')[0]}
-          </h1>
-          <p className="text-slate-400">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            Welcome back, {user?.email?.split('@')[0]}
+          </h2>
+          <p className="text-slate-600">
             Select a venue to browse seats and create shareable links
           </p>
         </div>
 
         {userVenues.length === 0 ? (
-          <div className="bg-slate-800 rounded-2xl p-12 text-center">
-            <div className="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
+          <div className="card-premium p-12 text-center">
+            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Building2 className="w-10 h-10 text-slate-400" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No Venues Assigned</h3>
-            <p className="text-slate-400">
-              You don't have access to any venues yet. Contact your administrator.
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">No Venues Assigned</h3>
+            <p className="text-slate-500 mb-6 max-w-md mx-auto">
+              You don&apos;t have access to any venues yet. Contact your administrator to get assigned.
             </p>
           </div>
         ) : (
@@ -131,36 +129,31 @@ export default function RepDashboard() {
               <Link
                 key={userVenue.venue.id}
                 href={`/rep/venue/${userVenue.venue.slug}`}
-                className="group bg-slate-800 rounded-2xl overflow-hidden hover:bg-slate-750 transition-colors border border-slate-700 hover:border-blue-500/50"
+                className="group card-premium overflow-hidden hover:scale-[1.02] transition-all duration-300"
               >
-                <div className="h-48 bg-gradient-to-br from-blue-600/20 to-emerald-600/20 flex items-center justify-center">
-                  {userVenue.venue.logo_url ? (
-                    <img
-                      src={userVenue.venue.logo_url}
-                      alt={userVenue.venue.name}
-                      className="h-24 w-auto object-contain"
-                    />
-                  ) : (
-                    <div className="text-6xl font-bold text-slate-600">
-                      {userVenue.venue.name.charAt(0)}
-                    </div>
-                  )}
+                <div className="h-48 bg-gradient-to-br from-blue-100 via-purple-50 to-emerald-100 flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 group-hover:opacity-75 transition-opacity" />
+                  <div className="text-6xl font-bold text-slate-300 group-hover:scale-110 transition-transform duration-300">
+                    {userVenue.venue.name.charAt(0)}
+                  </div>
                 </div>
                 <div className="p-6">
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-blue-400 transition-colors">
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
                     {userVenue.venue.name}
                   </h3>
                   {userVenue.venue.location && (
-                    <p className="text-slate-400 text-sm mb-4">
-                      {userVenue.venue.location}
-                    </p>
+                    <div className="flex items-center gap-2 text-slate-500 mb-4">
+                      <MapPin className="w-4 h-4" />
+                      <span className="text-sm">{userVenue.venue.location}</span>
+                    </div>
                   )}
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-500">
                       {userVenue.venue.total_seats?.toLocaleString() || '0'} seats
                     </span>
-                    <span className="text-blue-400 text-sm font-medium">
-                      Browse →
+                    <span className="text-blue-600 font-medium text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+                      Browse
+                      <ArrowRight className="w-4 h-4" />
                     </span>
                   </div>
                 </div>
