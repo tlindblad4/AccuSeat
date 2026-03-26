@@ -153,7 +153,7 @@ export default function AdminDashboard() {
           </Link>
 
           <Link
-            href="/admin/upload"
+            href="/admin/unmapped"
             className="bg-emerald-600 hover:bg-emerald-700 rounded-xl p-6 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -161,8 +161,8 @@ export default function AdminDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <div>
-                <p className="font-semibold">Bulk Upload</p>
-                <p className="text-sm text-emerald-200">Upload 360° photos</p>
+                <p className="font-semibold">Map Photos</p>
+                <p className="text-sm text-emerald-200">Map unmapped photos to seats</p>
               </div>
             </div>
           </Link>
