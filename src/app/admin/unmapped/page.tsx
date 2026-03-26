@@ -104,8 +104,15 @@ export default function UnmappedPhotosPage() {
       .from('seats')
       .select('*')
       .eq('row_id', rowId)
-      .order('seat_number')
-    setSeats(data || [])
+
+    // Sort numerically by seat_number
+    const sortedSeats = (data || []).sort((a, b) => {
+      const numA = parseInt(a.seat_number) || 0
+      const numB = parseInt(b.seat_number) || 0
+      return numA - numB
+    })
+
+    setSeats(sortedSeats)
   }
 
   const mapFileToSeat = async (file: UnmappedFile, seatId: string) => {
