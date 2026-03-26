@@ -20,7 +20,8 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
     setError(null)
 
     // Dynamically import pannellum to avoid SSR issues
-    import('pannellum').then((pannellum) => {
+    import('pannellum').then((module: any) => {
+      const pannellum = module.default || module
       if (containerRef.current && !viewerRef.current) {
         try {
           viewerRef.current = pannellum.viewer(containerRef.current, {
