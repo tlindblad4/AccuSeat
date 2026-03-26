@@ -141,33 +141,60 @@ export default function SimpleViewPage() {
   }
 
   const handleFeedback = async (type: 'like' | 'dislike') => {
-    // Load share link data for notification
-    const { data: linkData } = await supabase
-      .from('share_links')
-      .select('*')
-      .eq('token', token)
-      .single()
+    try {
+      // Load share link data for notification
+      const { data: linkData, error: linkError } = await supabase
+        .from('share_links')
+        .select('*')
+        .eq('token', token)
+        .single()
 
-    if (!linkData || !seat) return
+      if (linkError) {
+        console.error('Error loading link:', linkError)
+        alert('Error: Could not load link data')
+        return
+      }
 
-    // Save feedback
-    await supabase.from('prospect_feedback').insert({
-      share_link_id: linkData.id,
-      seat_id: seat.id,
-      feedback_type: type,
-    })
+      if (!linkData || !seat) {
+        alert('Error: Link or seat not found')
+        return
+      }
 
-    // Create notification for rep
-    await supabase.from('rep_notifications').insert({
-      user_id: linkData.created_by,
-      type: 'feedback',
-      title: type === 'like' ? '👍 Prospect liked a seat!' : '👎 Prospect passed on a seat',
-      message: `${seat.venue_name} - Section ${seat.section_number}, Row ${seat.row_number}, Seat ${seat.seat_number}`,
-      share_link_id: linkData.id,
-      seat_id: seat.id,
-    })
+      console.log('Link data:', linkData)
+      console.log('Creating notification for user:', linkData.created_by)
 
-    alert(type === 'like' ? 'Thanks! The rep has been notified.' : 'Thanks for your feedback!')
+      // Save feedback
+      const { error: feedbackError } = await supabase.from('prospect_feedback').insert({
+        share_link_id: linkData.id,
+        seat_id: seat.id,
+        feedback_type: type,
+      })
+
+      if (feedbackError) {
+        console.error('Error saving feedback:', feedbackError)
+      }
+
+      // Create notification for rep
+      const { error: notifError } = await supabase.from('rep_notifications').insert({
+        user_id: linkData.created_by,
+        type: 'feedback',
+        title: type === 'like' ? '👍 Prospect liked a seat!' : '👎 Prospect passed on a seat',
+        message: `${seat.venue_name} - Section ${seat.section_number}, Row ${seat.row_number}, Seat ${seat.seat_number}`,
+        share_link_id: linkData.id,
+        seat_id: seat.id,
+      })
+
+      if (notifError) {
+        console.error('Error creating notification:', notifError)
+        alert('Error creating notification: ' + notifError.message)
+        return
+      }
+
+      alert(type === 'like' ? 'Thanks! The rep has been notified.' : 'Thanks for your feedback!')
+    } catch (err: any) {
+      console.error('Feedback error:', err)
+      alert('Error: ' + err.message)
+    }
   }
 
   return (
