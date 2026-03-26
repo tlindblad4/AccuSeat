@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
-  title: "AccuSeat - Virtual Venue Experience",
-  description: "Real 360° seat views for ticket sales teams. Give prospects the exact view from their seat.",
+  title: "AccuSeat - Premium Seat Views",
+  description: "Experience every seat in stunning 360° detail. The future of ticket sales.",
 };
 
 export default function RootLayout({
@@ -15,8 +18,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} antialiased`}>{children}</body>
+    <html lang="en" className="light">
+      <body className={`${inter.variable} font-sans`}>
+        {children}
+      </body>
     </html>
   );
 }
