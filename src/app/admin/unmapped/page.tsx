@@ -3,27 +3,26 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Venue, Section, Row, Seat } from '@/types'
+import { ArrowLeft, MapPin, ImageIcon, Check } from 'lucide-react'
 
 interface UnmappedFile {
   name: string
   path: string
   publicUrl: string
   size: number
-  created_at: string
 }
 
 export default function UnmappedPhotosPage() {
-  const [venues, setVenues] = useState<Venue[]>([])
-  const [selectedVenue, setSelectedVenue] = useState<string>('')
+  const [venues, setVenues] = useState<any[]>([])
+  const [selectedVenue, setSelectedVenue] = useState('')
   const [unmappedFiles, setUnmappedFiles] = useState<UnmappedFile[]>([])
-  const [sections, setSections] = useState<Section[]>([])
-  const [selectedSection, setSelectedSection] = useState<string>('')
-  const [rows, setRows] = useState<Row[]>([])
-  const [selectedRow, setSelectedRow] = useState<string>('')
-  const [seats, setSeats] = useState<Seat[]>([])
+  const [sections, setSections] = useState<any[]>([])
+  const [rows, setRows] = useState<any[]>([])
+  const [seats, setSeats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [mappingFile, setMappingFile] = useState<UnmappedFile | null>(null)
+  const [selectedSection, setSelectedSection] = useState('')
+  const [selectedRow, setSelectedRow] = useState('')
 
   useEffect(() => {
     loadVenues()
@@ -55,24 +54,17 @@ export default function UnmappedPhotosPage() {
   }
 
   const loadUnmappedFiles = async (venueId: string) => {
-    // List files in the unmapped folder
     const { data, error } = await supabase.storage
       .from('seat-photos')
-      .list(`${venueId}/unmapped`, {
-        limit: 100,
-        offset: 0,
-        sortBy: { column: 'created_at', order: 'desc' }
-      })
+      .list(`${venueId}/unmapped`, { limit: 100 })
 
     if (error) {
-      console.error('Error loading files:', error)
       setUnmappedFiles([])
       return
     }
 
-    // Get public URLs for each file
     const files: UnmappedFile[] = (data || [])
-      .filter(file => !file.id.endsWith('/')) // Filter out folders
+      .filter(file => !file.id.endsWith('/'))
       .map(file => {
         const { data: { publicUrl } } = supabase.storage
           .from('seat-photos')
@@ -83,7 +75,6 @@ export default function UnmappedPhotosPage() {
           path: `${venueId}/unmapped/${file.name}`,
           publicUrl,
           size: file.metadata?.size || 0,
-          created_at: file.created_at,
         }
       })
 
@@ -96,11 +87,7 @@ export default function UnmappedPhotosPage() {
       .select('*')
       .eq('venue_id', venueId)
       .order('level')
-      .order('section_number')
     setSections(data || [])
-    setSelectedSection('')
-    setRows([])
-    setSeats([])
   }
 
   const loadRows = async (sectionId: string) => {
@@ -110,8 +97,6 @@ export default function UnmappedPhotosPage() {
       .eq('section_id', sectionId)
       .order('row_number')
     setRows(data || [])
-    setSelectedRow('')
-    setSeats([])
   }
 
   const loadSeats = async (rowId: string) => {
@@ -128,19 +113,14 @@ export default function UnmappedPhotosPage() {
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
       const isDng = fileExtension === 'dng'
 
-      // Save to database (insert only, no upsert since no unique constraint)
-      // First check if photo already exists for this seat
       const { data: existingPhoto } = await supabase
         .from('photos')
         .select('id')
         .eq('seat_id', seatId)
         .maybeSingle()
 
-      let dbError
-
       if (existingPhoto) {
-        // Update existing
-        const { error } = await supabase
+        await supabase
           .from('photos')
           .update({
             storage_path: file.path,
@@ -153,10 +133,8 @@ export default function UnmappedPhotosPage() {
             },
           })
           .eq('seat_id', seatId)
-        dbError = error
       } else {
-        // Insert new
-        const { error } = await supabase.from('photos').insert({
+        await supabase.from('photos').insert({
           seat_id: seatId,
           storage_path: file.path,
           public_url: file.publicUrl,
@@ -167,60 +145,52 @@ export default function UnmappedPhotosPage() {
             is_raw: isDng,
           },
         })
-        dbError = error
       }
 
-      if (dbError) {
-        throw dbError
-      }
-
-      // Remove from unmapped list
       setUnmappedFiles(prev => prev.filter(f => f.path !== file.path))
       setMappingFile(null)
     } catch (error: any) {
-      console.error('Error mapping file:', error)
-      alert('Failed to map file: ' + (error.message || 'Unknown error'))
+      alert('Failed to map file: ' + error.message)
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/admin" className="text-slate-400 hover:text-white transition-colors">
-              Admin
+          <div className="flex items-center gap-4">
+            <Link href="/admin" className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+              Back to Admin
             </Link>
-            <span className="text-slate-600">/</span>
-            <span className="text-white">Unmapped Photos</span>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-2">Unmapped Photos</h1>
-        <p className="text-slate-400 mb-8">
-          Map uploaded photos to seats
-        </p>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Map Photos to Seats</h1>
+          <p className="text-slate-600">Assign uploaded photos to specific seats</p>
+        </div>
 
         {/* Venue Selection */}
-        <div className="bg-slate-800 rounded-2xl p-6 mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-2">
+        <div className="card-premium p-6 mb-6">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
             Select Venue
           </label>
           <select
             value={selectedVenue}
             onChange={(e) => setSelectedVenue(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
           >
             <option value="">Choose a venue...</option>
             {venues.map((venue) => (
@@ -233,31 +203,46 @@ export default function UnmappedPhotosPage() {
 
         {/* Unmapped Files */}
         {selectedVenue && (
-          <div className="bg-slate-800 rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              Unmapped Files ({unmappedFiles.length})
+          <div className="card-premium p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
+              Unmapped Photos ({unmappedFiles.length})
             </h2>
 
             {unmappedFiles.length === 0 ? (
-              <p className="text-slate-400 text-center py-8">
-                No unmapped photos found for this venue.
-              </p>
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <ImageIcon className="w-8 h-8 text-slate-400" />
+                </div>
+                <p className="text-slate-500">No unmapped photos found.</p>
+                <Link href="/admin/upload" className="btn-primary inline-flex mt-4">
+                  Upload Photos
+                </Link>
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {unmappedFiles.map((file) => (
                   <div
                     key={file.path}
-                    className="flex items-center justify-between p-4 bg-slate-700 rounded-lg"
+                    className="bg-slate-50 rounded-xl p-4 hover:bg-slate-100 transition-colors"
                   >
-                    <div>
-                      <p className="font-medium">{file.name}</p>
-                      <p className="text-sm text-slate-400">
-                        {(file.size / 1024 / 1024).toFixed(1)} MB
-                      </p>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <ImageIcon className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-900 text-sm truncate max-w-[150px]">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {(file.size / 1024 / 1024).toFixed(1)} MB
+                          </p>
+                        </div>
+                      </div>
                     </div>
                     <button
                       onClick={() => setMappingFile(file)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors"
                     >
                       Map to Seat
                     </button>
@@ -270,22 +255,21 @@ export default function UnmappedPhotosPage() {
 
         {/* Mapping Modal */}
         {mappingFile && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-lg">
-              <h3 className="text-xl font-semibold mb-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg animate-scale-in">
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
                 Map: {mappingFile.name}
               </h3>
 
-              {/* Section/Row/Seat Selectors */}
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Section
                   </label>
                   <select
                     value={selectedSection}
                     onChange={(e) => setSelectedSection(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
                   >
                     <option value="">Select section...</option>
                     {sections.map((section) => (
@@ -297,14 +281,14 @@ export default function UnmappedPhotosPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Row
                   </label>
                   <select
                     value={selectedRow}
                     onChange={(e) => setSelectedRow(e.target.value)}
                     disabled={!selectedSection}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white disabled:opacity-50"
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none disabled:opacity-50"
                   >
                     <option value="">Select row...</option>
                     {rows.map((row) => (
@@ -317,7 +301,7 @@ export default function UnmappedPhotosPage() {
 
                 {seats.length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                       Select Seat
                     </label>
                     <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto">
@@ -325,7 +309,7 @@ export default function UnmappedPhotosPage() {
                         <button
                           key={seat.id}
                           onClick={() => mapFileToSeat(mappingFile, seat.id)}
-                          className="p-2 bg-slate-700 hover:bg-blue-600 rounded text-sm transition-colors"
+                          className="p-3 bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg text-sm font-medium transition-colors"
                         >
                           {seat.seat_number}
                         </button>
@@ -335,14 +319,12 @@ export default function UnmappedPhotosPage() {
                 )}
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setMappingFile(null)}
-                  className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+              <button
+                onClick={() => setMappingFile(null)}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         )}
