@@ -176,8 +176,8 @@ export default function AdminDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
               </svg>
               <div>
-                <p className="font-semibold">Add User</p>
-                <p className="text-sm text-purple-200">Create rep account</p>
+                <p className="font-semibold">Assign User</p>
+                <p className="text-sm text-purple-200">Assign to venue</p>
               </div>
             </div>
           </Link>

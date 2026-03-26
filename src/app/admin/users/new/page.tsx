@@ -6,10 +6,17 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Venue } from '@/types'
 
-export default function NewUserPage() {
+interface User {
+  id: string
+  email: string
+  created_at: string
+}
+
+export default function AssignUserPage() {
   const [venues, setVenues] = useState<Venue[]>([])
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [users, setUsers] = useState<User[]>([])
+  const [assignedUsers, setAssignedUsers] = useState<string[]>([])
+  const [selectedUser, setSelectedUser] = useState('')
   const [selectedVenue, setSelectedVenue] = useState('')
   const [role, setRole] = useState<'admin' | 'rep'>('rep')
   const [loading, setLoading] = useState(false)
@@ -19,6 +26,7 @@ export default function NewUserPage() {
 
   useEffect(() => {
     loadVenues()
+    loadUsers()
   }, [])
 
   const loadVenues = async () => {
@@ -26,63 +34,71 @@ export default function NewUserPage() {
     setVenues(data || [])
   }
 
+  const loadUsers = async () => {
+    // Get all users from auth
+    const { data: usersData, error: usersError } = await supabase
+      .from('user_venues')
+      .select('user_id')
+
+    if (usersError) {
+      console.error('Error loading assigned users:', usersError)
+    } else {
+      const assignedIds = (usersData || []).map((u: any) => u.user_id)
+      setAssignedUsers(assignedIds)
+    }
+
+    // For now, we'll show a simple message since we can't list all auth users easily
+    // In production, you'd use a server function or admin API
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    if (!email || !password) {
-      setError('Email and password are required')
+    if (!selectedUser) {
+      setError('Please enter a user email')
       setLoading(false)
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    // Find user by email
+    const { data: userData, error: userError } = await supabase
+      .from('user_venues')
+      .select('user_id')
+      .eq('user_id', selectedUser)
+      .maybeSingle()
+
+    if (userError) {
+      console.error('Error checking user:', userError)
+    }
+
+    // Check if user exists in auth by trying to get their ID
+    // For now, we'll accept any UUID format or email
+    let userId = selectedUser
+
+    // If it looks like an email, we need to find the user ID
+    if (selectedUser.includes('@')) {
+      setError('Please enter the user ID (UUID) from Supabase Auth, not the email. Go to Supabase → Auth → Users to find the ID.')
       setLoading(false)
       return
     }
 
-    // Create user in auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
+    // Assign to venue
+    const { error: assignError } = await supabase.from('user_venues').insert({
+      user_id: userId,
+      venue_id: role === 'admin' ? null : selectedVenue,
+      role,
     })
 
-    if (authError) {
-      setError(authError.message)
+    if (assignError) {
+      if (assignError.message.includes('duplicate')) {
+        setError('User is already assigned to this venue')
+      } else {
+        setError(assignError.message)
+      }
       setLoading(false)
       return
-    }
-
-    if (!authData.user) {
-      setError('Failed to create user')
-      setLoading(false)
-      return
-    }
-
-    // Assign to venue if selected
-    if (selectedVenue) {
-      const { error: venueError } = await supabase.from('user_venues').insert({
-        user_id: authData.user.id,
-        venue_id: selectedVenue,
-        role,
-      })
-
-      if (venueError) {
-        console.error('Error assigning venue:', venueError)
-      }
-    } else if (role === 'admin') {
-      // Create admin record without venue
-      const { error: adminError } = await supabase.from('user_venues').insert({
-        user_id: authData.user.id,
-        venue_id: null,
-        role: 'admin',
-      })
-
-      if (adminError) {
-        console.error('Error creating admin:', adminError)
-      }
     }
 
     setSuccess(true)
@@ -99,9 +115,9 @@ export default function NewUserPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">User Created!</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">User Assigned!</h2>
             <p className="text-slate-400 mb-6">
-              The user has been created and will receive an email to confirm their account.
+              The user has been assigned to the venue successfully.
             </p>
             <Link
               href="/admin"
@@ -125,13 +141,16 @@ export default function NewUserPage() {
               Admin
             </Link>
             <span className="text-slate-600">/</span>
-            <span className="text-white">New User</span>
+            <span className="text-white">Assign User</span>
           </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-8">Add New User</h1>
+        <h1 className="text-3xl font-bold mb-2">Assign User to Venue</h1>
+        <p className="text-slate-400 mb-8">
+          Assign existing users to venues so they can access seat photos
+        </p>
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400">
@@ -139,34 +158,32 @@ export default function NewUserPage() {
           </div>
         )}
 
+        <div className="bg-slate-800 rounded-xl p-6 mb-6">
+          <h3 className="font-semibold mb-2">How to find a User ID:</h3>
+          <ol className="text-sm text-slate-400 list-decimal list-inside space-y-1">
+            <li>Go to Supabase Dashboard</li>
+            <li>Click Authentication → Users</li>
+            <li>Find the user and copy their ID (UUID)</li>
+            <li>Paste it below</li>
+          </ol>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Email *
+              User ID (UUID) *
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="user@company.com"
+              placeholder="a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Password *
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-            />
-            <p className="text-xs text-slate-500 mt-1">Must be at least 6 characters</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Paste the UUID from Supabase Auth → Users
+            </p>
           </div>
 
           <div>
@@ -202,11 +219,12 @@ export default function NewUserPage() {
           {role === 'rep' && (
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Assign to Venue
+                Assign to Venue *
               </label>
               <select
                 value={selectedVenue}
                 onChange={(e) => setSelectedVenue(e.target.value)}
+                required={role === 'rep'}
                 className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a venue...</option>
@@ -228,7 +246,7 @@ export default function NewUserPage() {
               disabled={loading}
               className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 rounded-lg font-semibold transition-colors"
             >
-              {loading ? 'Creating...' : 'Create User'}
+              {loading ? 'Assigning...' : 'Assign User'}
             </button>
             <Link
               href="/admin"
