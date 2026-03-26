@@ -26,19 +26,7 @@ export default function RepDashboard() {
 
     setUser(session.user)
     
-    // Check if user is admin
-    const { data: adminData } = await supabase
-      .from('user_venues')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('role', 'admin')
-      .maybeSingle()
-    
-    if (adminData) {
-      router.push('/admin')
-      return
-    }
-    
+    // Allow admins to view sales portal too (no redirect)
     await loadUserVenues(session.user.id)
   }
 
