@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { PanoramaViewer } from '@/components/viewer/PanoramaViewer'
+import { Eye, MapPin, ThumbsUp, ThumbsDown, Check } from 'lucide-react'
 
 interface SharedSeat {
   id: string
@@ -19,20 +20,20 @@ interface SharedSeat {
   rep_notes?: string
 }
 
-export default function SimpleViewPage() {
+export default function ViewPage() {
   const params = useParams()
   const token = params.token as string
 
   const [seat, setSeat] = useState<SharedSeat | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
 
   useEffect(() => {
     loadSharedSeat()
   }, [token])
 
   const loadSharedSeat = async () => {
-    // Load share link
     const { data: linkData } = await supabase
       .from('share_links')
       .select('*')
@@ -45,14 +46,12 @@ export default function SimpleViewPage() {
       return
     }
 
-    // Check if expired
     if (linkData.expires_at && new Date(linkData.expires_at) < new Date()) {
       setError('This link has expired')
       setLoading(false)
       return
     }
 
-    // Load the first (and only) item
     const { data: itemData } = await supabase
       .from('share_link_items')
       .select(`
@@ -75,7 +74,6 @@ export default function SimpleViewPage() {
 
     const seatData = itemData.seat as any
 
-    // Load photo for this seat
     const { data: photoData } = await supabase
       .from('photos')
       .select('*')
@@ -96,29 +94,47 @@ export default function SimpleViewPage() {
       rep_notes: itemData.rep_notes,
     })
 
-    // Track view
     await supabase.from('analytics_events').insert({
       share_link_id: linkData.id,
       event_type: 'view',
       seat_id: seatData.id,
     })
 
-    // Create notification for rep
-    await supabase.from('rep_notifications').insert({
-      user_id: linkData.created_by,
-      type: 'view',
-      title: `Your seat link was viewed`,
-      message: `Someone viewed ${seatData.row?.section?.venue?.name} - Section ${seatData.row?.section?.section_number}, Row ${seatData.row?.row_number}, Seat ${seatData.seat_number}`,
+    setLoading(false)
+  }
+
+  const handleFeedback = async (type: 'like' | 'dislike') => {
+    if (!seat) return
+
+    const { data: linkData } = await supabase
+      .from('share_links')
+      .select('*')
+      .eq('token', token)
+      .single()
+
+    if (!linkData) return
+
+    await supabase.from('prospect_feedback').insert({
       share_link_id: linkData.id,
-      seat_id: seatData.id,
+      seat_id: seat.id,
+      feedback_type: type,
     })
 
-    setLoading(false)
+    await supabase.from('rep_notifications').insert({
+      user_id: linkData.created_by,
+      type: 'feedback',
+      title: type === 'like' ? '👍 Prospect liked a seat!' : '👎 Prospect passed on a seat',
+      message: `${seat.venue_name} - Section ${seat.section_number}, Row ${seat.row_number}, Seat ${seat.seat_number}`,
+      share_link_id: linkData.id,
+      seat_id: seat.id,
+    })
+
+    setFeedbackSubmitted(true)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
       </div>
     )
@@ -126,144 +142,83 @@ export default function SimpleViewPage() {
 
   if (error || !seat) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Link Error</h1>
-          <p className="text-slate-400">{error || 'Seat not found'}</p>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Link Error</h1>
+          <p className="text-slate-500">{error || 'Seat not found'}</p>
         </div>
       </div>
     )
   }
 
-  const handleFeedback = async (type: 'like' | 'dislike') => {
-    try {
-      // Load share link data for notification
-      const { data: linkData, error: linkError } = await supabase
-        .from('share_links')
-        .select('*')
-        .eq('token', token)
-        .single()
-
-      if (linkError) {
-        console.error('Error loading link:', linkError)
-        alert('Error: Could not load link data')
-        return
-      }
-
-      if (!linkData || !seat) {
-        alert('Error: Link or seat not found')
-        return
-      }
-
-      console.log('Link data:', linkData)
-      console.log('Creating notification for user:', linkData.created_by)
-
-      // Save feedback
-      const { error: feedbackError } = await supabase.from('prospect_feedback').insert({
-        share_link_id: linkData.id,
-        seat_id: seat.id,
-        feedback_type: type,
-      })
-
-      if (feedbackError) {
-        console.error('Error saving feedback:', feedbackError)
-      }
-
-      // Create notification for rep
-      const { error: notifError } = await supabase.from('rep_notifications').insert({
-        user_id: linkData.created_by,
-        type: 'feedback',
-        title: type === 'like' ? '👍 Prospect liked a seat!' : '👎 Prospect passed on a seat',
-        message: `${seat.venue_name} - Section ${seat.section_number}, Row ${seat.row_number}, Seat ${seat.seat_number}`,
-        share_link_id: linkData.id,
-        seat_id: seat.id,
-      })
-
-      if (notifError) {
-        console.error('Error creating notification:', notifError)
-        alert('Error creating notification: ' + notifError.message)
-        return
-      }
-
-      alert(type === 'like' ? 'Thanks! The rep has been notified.' : 'Thanks for your feedback!')
-    } catch (err: any) {
-      console.error('Feedback error:', err)
-      alert('Error: ' + err.message)
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="text-2xl font-bold text-blue-400">AccuSeat</div>
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+              <Eye className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-slate-900">AccuSeat</h1>
               {seat.venue_name && (
-                <>
-                  <span className="text-slate-400">|</span>
-                  <span className="text-slate-300">{seat.venue_name}</span>
-                </>
+                <p className="text-sm text-slate-500">{seat.venue_name}</p>
               )}
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-6">
         {/* 360° Viewer */}
         {seat.photo_url ? (
-          <div className="bg-slate-800 rounded-2xl overflow-hidden mb-6">
-            <div className="h-[500px] lg:h-[600px]">
+          <div className="card-premium overflow-hidden mb-6">
+            <div className="h-[400px] md:h-[500px]">
               <PanoramaViewer imageUrl={seat.photo_url} />
             </div>
-            <div className="p-4 bg-slate-800 border-t border-slate-700">
-              <div className="flex items-center gap-3 mb-2">
-                <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <p className="text-sm font-medium text-white">
-                  Move your phone to look around
-                </p>
+            <div className="p-4 bg-slate-50 border-t border-slate-100">
+              <div className="flex items-center gap-2 text-slate-600">
+                <Eye className="w-5 h-5 text-blue-600" />
+                <span className="font-medium">Move your phone to look around</span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm text-slate-500 mt-1">
                 Tilt and rotate your phone to explore this seat&apos;s view
               </p>
             </div>
           </div>
         ) : (
-          <div className="h-[400px] bg-slate-800 rounded-2xl flex items-center justify-center mb-6">
-            <p className="text-slate-400">Photo not available</p>
+          <div className="h-[400px] card-premium flex items-center justify-center mb-6">
+            <p className="text-slate-500">Photo not available</p>
           </div>
         )}
 
         {/* Seat Info */}
-        <div className="bg-slate-800 rounded-xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Your Seat</h2>
+        <div className="card-premium p-6 mb-6">
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Your Seat</h2>
           
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div>
-              <p className="text-sm text-slate-400">Section</p>
-              <p className="text-lg font-medium">{seat.section_number || 'N/A'}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-slate-50 rounded-xl p-4">
+              <p className="text-sm text-slate-500 mb-1">Section</p>
+              <p className="text-lg font-bold text-slate-900">{seat.section_number || 'N/A'}</p>
             </div>
-            <div>
-              <p className="text-sm text-slate-400">Row</p>
-              <p className="text-lg font-medium">{seat.row_number || 'N/A'}</p>
+            <div className="bg-slate-50 rounded-xl p-4">
+              <p className="text-sm text-slate-500 mb-1">Row</p>
+              <p className="text-lg font-bold text-slate-900">{seat.row_number || 'N/A'}</p>
             </div>
-            <div>
-              <p className="text-sm text-slate-400">Seat</p>
-              <p className="text-lg font-medium">{seat.seat_number}</p>
+            <div className="bg-slate-50 rounded-xl p-4">
+              <p className="text-sm text-slate-500 mb-1">Seat</p>
+              <p className="text-lg font-bold text-slate-900">{seat.seat_number}</p>
             </div>
             {seat.price && (
-              <div>
-                <p className="text-sm text-slate-400">Price</p>
-                <p className="text-xl font-bold text-emerald-400">
+              <div className="bg-slate-50 rounded-xl p-4">
+                <p className="text-sm text-slate-500 mb-1">Price</p>
+                <p className="text-xl font-bold text-emerald-600">
                   ${seat.price.toLocaleString()}
                 </p>
               </div>
@@ -271,52 +226,56 @@ export default function SimpleViewPage() {
           </div>
 
           {seat.plan_type && (
-            <div className="mb-4">
-              <p className="text-sm text-slate-400">Plan</p>
-              <p className="font-medium">{seat.plan_type}</p>
+            <div className="mb-3">
+              <p className="text-sm text-slate-500">Plan</p>
+              <p className="font-medium text-slate-900">{seat.plan_type}</p>
             </div>
           )}
 
           {seat.term_length && (
-            <div className="mb-4">
-              <p className="text-sm text-slate-400">Term</p>
-              <p className="font-medium">{seat.term_length}</p>
-            </div>
-          )}
-
-          {seat.payment_plan && (
-            <div className="mb-4">
-              <p className="text-sm text-slate-400">Payment</p>
-              <p className="font-medium">{seat.payment_plan}</p>
+            <div className="mb-3">
+              <p className="text-sm text-slate-500">Term</p>
+              <p className="font-medium text-slate-900">{seat.term_length}</p>
             </div>
           )}
 
           {seat.rep_notes && (
-            <div className="mt-6 p-4 bg-slate-700/50 rounded-lg">
-              <p className="text-sm text-slate-400 mb-1">Notes from your rep</p>
-              <p className="text-slate-200">{seat.rep_notes}</p>
+            <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <p className="text-sm text-blue-600 font-medium mb-1">Notes from your rep</p>
+              <p className="text-slate-700">{seat.rep_notes}</p>
             </div>
           )}
         </div>
 
         {/* Feedback */}
-        <div className="mt-6 bg-slate-800 rounded-xl p-6">
-          <h3 className="font-semibold mb-4">What do you think?</h3>
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleFeedback('like')}
-              className="flex-1 py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-600/50 rounded-lg font-medium text-emerald-400 transition-colors"
-            >
-              👍 I like it
-            </button>
-            <button
-              onClick={() => handleFeedback('dislike')}
-              className="flex-1 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 rounded-lg font-medium text-red-400 transition-colors"
-            >
-              👎 Not for me
-            </button>
+        {!feedbackSubmitted ? (
+          <div className="card-premium p-6">
+            <h3 className="font-bold text-slate-900 mb-4">What do you think?</h3>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleFeedback('like')}
+                className="flex-1 py-4 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <ThumbsUp className="w-5 h-5" />
+                I like it
+              </button>
+              <button
+                onClick={() => handleFeedback('dislike')}
+                className="flex-1 py-4 bg-red-100 hover:bg-red-200 text-red-700 font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <ThumbsDown className="w-5 h-5" />
+                Not for me
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="card-premium p-6 bg-emerald-50 border-emerald-200">
+            <div className="flex items-center gap-3 text-emerald-700">
+              <Check className="w-6 h-6" />
+              <span className="font-semibold">Thanks for your feedback! The rep has been notified.</span>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

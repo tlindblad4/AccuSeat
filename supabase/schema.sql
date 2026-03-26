@@ -158,9 +158,15 @@ CREATE INDEX IF NOT EXISTS idx_prospect_feedback_link ON prospect_feedback(share
 -- RLS for notifications
 ALTER TABLE rep_notifications ENABLE ROW LEVEL SECURITY;
 
+-- Allow anyone to insert notifications (for anonymous prospect feedback)
+CREATE POLICY "Anyone can insert notifications" ON rep_notifications
+    FOR INSERT WITH CHECK (true);
+
+-- Users can only view their own notifications
 CREATE POLICY "Users can view own notifications" ON rep_notifications
     FOR SELECT USING (user_id = auth.uid());
 
+-- Users can only update their own notifications
 CREATE POLICY "Users can update own notifications" ON rep_notifications
     FOR UPDATE USING (user_id = auth.uid());
 
