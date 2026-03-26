@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Section, Row, Seat, Photo } from '@/types'
 import { PanoramaViewer } from '@/components/viewer/PanoramaViewer'
+import { ArrowLeft, Eye, Share2, Copy, Check, Loader2 } from 'lucide-react'
 
 export default function SectionPage() {
   const params = useParams()
@@ -20,7 +21,6 @@ export default function SectionPage() {
   const [seatPhoto, setSeatPhoto] = useState<Photo | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedRow, setSelectedRow] = useState<string | null>(null)
-  const [linkItems, setLinkItems] = useState<{ seat: Seat; notes: string }[]>([])
   const [showLinkBuilder, setShowLinkBuilder] = useState(false)
   const [clientPhone, setClientPhone] = useState('')
   const [clientName, setClientName] = useState('')
@@ -28,20 +28,16 @@ export default function SectionPage() {
   const [generatedLink, setGeneratedLink] = useState('')
   const [sendingSms, setSendingSms] = useState(false)
   const [smsStatus, setSmsStatus] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     loadSectionData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId])
 
   const loadSectionData = async () => {
-    // Load section with venue
     const { data: sectionData } = await supabase
       .from('sections')
-      .select(`
-        *,
-        venue:venues(*)
-      `)
+      .select(`*, venue:venues(*)`)
       .eq('id', sectionId)
       .single()
 
@@ -50,9 +46,8 @@ export default function SectionPage() {
       return
     }
 
-    setSection(sectionData as Section & { venue: { name: string } })
+    setSection(sectionData)
 
-    // Load rows
     const { data: rowsData } = await supabase
       .from('rows')
       .select('*')
@@ -61,14 +56,12 @@ export default function SectionPage() {
 
     setRows(rowsData || [])
 
-    // Load seats for all rows
     if (rowsData && rowsData.length > 0) {
       const { data: seatsData } = await supabase
         .from('seats')
         .select('*')
         .in('row_id', rowsData.map(r => r.id))
 
-      // Sort numerically by seat_number
       const sortedSeats = (seatsData || []).sort((a, b) => {
         const numA = parseInt(a.seat_number) || 0
         const numB = parseInt(b.seat_number) || 0
@@ -76,11 +69,7 @@ export default function SectionPage() {
       })
 
       setSeats(sortedSeats)
-      
-      // Select first row by default
-      if (rowsData.length > 0) {
-        setSelectedRow(rowsData[0].id)
-      }
+      setSelectedRow(rowsData[0].id)
     }
 
     setLoading(false)
@@ -101,27 +90,15 @@ export default function SectionPage() {
     await loadSeatPhoto(seat.id)
   }
 
-  const addToLink = () => {
-    if (!selectedSeat) return
-    
-    // Only allow one seat per link
-    setLinkItems([{ seat: selectedSeat, notes: '' }])
-    setShowLinkBuilder(true)
-  }
-
-  const removeFromLink = (seatId: string) => {
-    setLinkItems(linkItems.filter(item => item.seat.id !== seatId))
-    if (linkItems.length <= 1) {
-      setShowLinkBuilder(false)
-    }
-  }
-
   const generateLink = async () => {
-    // Create share link
+    if (!selectedSeat) return
+
+    const { data: session } = await supabase.auth.getSession()
+    
     const { data: linkData, error } = await supabase
       .from('share_links')
       .insert({
-        created_by: (await supabase.auth.getSession()).data.session?.user.id,
+        created_by: session.data.session?.user.id,
         venue_id: section?.venue_id,
         client_name: clientName,
         client_phone: clientPhone,
@@ -135,85 +112,52 @@ export default function SectionPage() {
       return
     }
 
-    // Add items to link
-    const items = linkItems.map((item, index) => ({
+    await supabase.from('share_link_items').insert({
       share_link_id: linkData.id,
-      seat_id: item.seat.id,
-      option_order: index + 1,
-      rep_notes: item.notes,
-    }))
+      seat_id: selectedSeat.id,
+      option_order: 1,
+      rep_notes: linkNotes,
+    })
 
-    await supabase.from('share_link_items').insert(items)
-
-    // Generate URL
     const url = `${window.location.origin}/view/${linkData.token}`
     setGeneratedLink(url)
+    setShowLinkBuilder(true)
   }
 
-  const sendSMS = async () => {
-    if (!clientPhone || !generatedLink) return
-
-    setSendingSms(true)
-    setSmsStatus(null)
-
-    try {
-      const response = await fetch('/api/send-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phoneNumber: clientPhone,
-          message: linkNotes || `Hi ${clientName}, check out this seat view!`,
-          linkUrl: generatedLink,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setSmsStatus('SMS sent successfully!')
-      } else if (data.linkUrl) {
-        // SMS not configured but we have the link
-        setSmsStatus('SMS not configured. Copy the link below to send manually.')
-      } else {
-        setSmsStatus('Failed to send SMS: ' + (data.error || 'Unknown error'))
-      }
-    } catch (error: any) {
-      setSmsStatus('Error: ' + error.message)
-    } finally {
-      setSendingSms(false)
-    }
+  const copyLink = () => {
+    navigator.clipboard.writeText(generatedLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const filteredSeats = selectedRow
     ? seats.filter(s => s.row_id === selectedRow)
     : seats
 
+  const selectedRowData = rows.find(r => r.id === selectedRow)
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/rep" className="text-slate-400 hover:text-white transition-colors">
-              Venues
+          <div className="flex items-center gap-4">
+            <Link href={`/rep/venue/${venueSlug}`} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+              Back
             </Link>
-            <span className="text-slate-600">/</span>
-            <Link 
-              href={`/rep/venue/${venueSlug}`} 
-              className="text-slate-400 hover:text-white transition-colors"
-            >
-              {(section as any)?.venue?.name}
-            </Link>
-            <span className="text-slate-600">/</span>
-            <span className="text-white">Section {section?.section_number}</span>
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-900 font-semibold">
+              {(section as any)?.venue?.name} - Section {section?.section_number}
+            </span>
           </div>
         </div>
       </header>
@@ -223,22 +167,22 @@ export default function SectionPage() {
           {/* Left Panel - Seat Selection */}
           <div className="lg:col-span-1 space-y-6">
             <div>
-              <h1 className="text-2xl font-bold mb-1">
-                {section?.level} - Section {section?.section_number}
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">
+                Section {section?.section_number}
               </h1>
-              <p className="text-slate-400">Select a seat to view</p>
+              <p className="text-slate-600">Select a seat to view</p>
             </div>
 
             {/* Row Selector */}
             {rows.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Row
                 </label>
                 <select
                   value={selectedRow || ''}
                   onChange={(e) => setSelectedRow(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
                 >
                   {rows.map((row) => (
                     <option key={row.id} value={row.id}>
@@ -251,18 +195,18 @@ export default function SectionPage() {
 
             {/* Seats Grid */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Seats
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Seats ({filteredSeats.length})
               </label>
               <div className="grid grid-cols-4 gap-2">
                 {filteredSeats.map((seat) => (
                   <button
                     key={seat.id}
                     onClick={() => handleSeatClick(seat)}
-                    className={`p-3 rounded-lg font-medium transition-colors ${
+                    className={`p-3 rounded-xl font-semibold transition-all ${
                       selectedSeat?.id === seat.id
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25'
+                        : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-blue-500 hover:text-blue-600'
                     }`}
                   >
                     {seat.seat_number}
@@ -273,27 +217,21 @@ export default function SectionPage() {
 
             {/* Selected Seat Info */}
             {selectedSeat && (
-              <div className="bg-slate-800 rounded-xl p-4">
-                <h3 className="font-semibold mb-2">Seat {selectedSeat.seat_number}</h3>
+              <div className="card-premium p-4">
+                <h3 className="font-bold text-slate-900 mb-2">
+                  Seat {selectedSeat.seat_number}
+                </h3>
                 {selectedSeat.price && (
-                  <p className="text-2xl font-bold text-emerald-400 mb-2">
+                  <p className="text-2xl font-bold text-emerald-600 mb-2">
                     ${selectedSeat.price.toLocaleString()}
                   </p>
                 )}
-                {selectedSeat.plan_type && (
-                  <p className="text-slate-400 text-sm">{selectedSeat.plan_type}</p>
-                )}
-                {selectedSeat.term_length && (
-                  <p className="text-slate-400 text-sm">{selectedSeat.term_length}</p>
-                )}
                 <button
-                  onClick={addToLink}
-                  disabled={linkItems.some(item => item.seat.id === selectedSeat.id)}
-                  className="w-full mt-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 rounded-lg font-medium transition-colors"
+                  onClick={() => setShowLinkBuilder(true)}
+                  className="w-full btn-primary flex items-center justify-center gap-2"
                 >
-                  {linkItems.some(item => item.seat.id === selectedSeat.id)
-                    ? 'Added to Link'
-                    : 'Add to Link'}
+                  <Share2 className="w-4 h-4" />
+                  Create Share Link
                 </button>
               </div>
             )}
@@ -302,158 +240,139 @@ export default function SectionPage() {
           {/* Right Panel - 360° Viewer */}
           <div className="lg:col-span-2">
             {seatPhoto ? (
-              <div className="bg-slate-800 rounded-2xl overflow-hidden">
+              <div className="card-premium overflow-hidden">
                 <div className="h-[500px]">
                   <PanoramaViewer imageUrl={seatPhoto.public_url} />
                 </div>
-                <div className="p-4 bg-slate-800 border-t border-slate-700">
-                  <p className="text-sm text-slate-400">
+                <div className="p-4 bg-slate-50 border-t border-slate-100">
+                  <p className="text-sm text-slate-600 flex items-center gap-2">
+                    <Eye className="w-4 h-4" />
                     Move your phone or drag to look around
                   </p>
                 </div>
               </div>
             ) : selectedSeat ? (
-              <div className="h-[500px] bg-slate-800 rounded-2xl flex items-center justify-center">
-                <p className="text-slate-400">No photo available for this seat</p>
+              <div className="h-[500px] card-premium flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Eye className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <p className="text-slate-500">No photo available for this seat</p>
+                </div>
               </div>
             ) : (
-              <div className="h-[500px] bg-slate-800 rounded-2xl flex items-center justify-center">
-                <p className="text-slate-400">Select a seat to view the 360° photo</p>
+              <div className="h-[500px] card-premium flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Eye className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <p className="text-slate-500">Select a seat to view the 360° photo</p>
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Link Builder */}
-        {showLinkBuilder && linkItems.length > 0 && (
-          <div className="mt-8 bg-slate-800 rounded-2xl p-6">
-            <h3 className="text-xl font-semibold mb-4">Build Share Link</h3>
-            
-            {/* Selected Seats */}
-            <div className="mb-6">
-              <h4 className="text-sm font-medium text-slate-300 mb-2">Selected Options:</h4>
-              <div className="space-y-2">
-                {linkItems.map((item, index) => (
-                  <div key={item.seat.id} className="flex items-center justify-between bg-slate-700 rounded-lg p-3">
-                    <div>
-                      <span className="font-medium">Option {index + 1}:</span>
-                      <span className="ml-2">Section {section?.section_number}, Row {item.seat.row?.row_number}, Seat {item.seat.seat_number}</span>
-                      {item.seat.price && (
-                        <span className="ml-2 text-emerald-400">${item.seat.price.toLocaleString()}</span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => removeFromLink(item.seat.id)}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+        {/* Link Builder Modal */}
+        {showLinkBuilder && selectedSeat && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md animate-scale-in">
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Create Share Link</h3>
+              <p className="text-slate-600 mb-6">
+                Section {section?.section_number}, Row {selectedRowData?.row_number}, Seat {selectedSeat.seat_number}
+              </p>
 
-            {/* Client Info */}
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Client Name
-                </label>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="John Smith"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Client Phone
-                </label>
-                <input
-                  type="tel"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="(555) 123-4567"
-                />
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Notes
-              </label>
-              <textarea
-                value={linkNotes}
-                onChange={(e) => setLinkNotes(e.target.value)}
-                rows={3}
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Add any notes for the client..."
-              />
-            </div>
-
-            {!generatedLink ? (
-              <button
-                onClick={generateLink}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold transition-colors"
-              >
-                Generate Share Link
-              </button>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-slate-700 rounded-lg p-4">
-                  <p className="text-sm text-slate-400 mb-2">Link generated:</p>
-                  <div className="flex gap-2">
+              {!generatedLink ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Client Name
+                    </label>
                     <input
                       type="text"
-                      value={generatedLink}
-                      readOnly
-                      className="flex-1 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                      placeholder="John Smith"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Client Phone (optional)
+                    </label>
+                    <input
+                      type="tel"
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Notes (optional)
+                    </label>
+                    <textarea
+                      value={linkNotes}
+                      onChange={(e) => setLinkNotes(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                      placeholder="Add any notes for the client..."
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
                     <button
-                      onClick={() => navigator.clipboard.writeText(generatedLink)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                      onClick={() => setShowLinkBuilder(false)}
+                      className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors"
                     >
-                      Copy
+                      Cancel
+                    </button>
+                    <button
+                      onClick={generateLink}
+                      className="flex-1 btn-primary"
+                    >
+                      Generate Link
                     </button>
                   </div>
                 </div>
-
-                {clientPhone && (
-                  <button
-                    onClick={sendSMS}
-                    disabled={sendingSms}
-                    className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                  >
-                    {sendingSms ? (
-                      <>
-                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                        Send via SMS
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {smsStatus && (
-                  <div className={`p-3 rounded-lg text-sm ${
-                    smsStatus.includes('success') 
-                      ? 'bg-emerald-500/20 text-emerald-400' 
-                      : 'bg-amber-500/20 text-amber-400'
-                  }`}>
-                    {smsStatus}
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <p className="text-sm text-slate-500 mb-2">Share this link:</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={generatedLink}
+                        readOnly
+                        className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm"
+                      />
+                      <button
+                        onClick={copyLink}
+                        className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
+                      >
+                        {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
+
+                  <button
+                    onClick={() => {
+                      setShowLinkBuilder(false)
+                      setGeneratedLink('')
+                      setClientName('')
+                      setClientPhone('')
+                      setLinkNotes('')
+                    }}
+                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors"
+                  >
+                    Create Another Link
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
