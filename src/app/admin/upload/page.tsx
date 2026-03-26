@@ -125,7 +125,9 @@ export default function BulkUploadPage() {
       try {
         // Upload to Supabase Storage (unmapped folder)
         const filePath = `${selectedVenue}/unmapped/${Date.now()}_${file.name}`
-        const { error: uploadError } = await supabase.storage
+        console.log('Uploading:', file.name, 'to', filePath)
+        
+        const { error: uploadError, data: uploadData } = await supabase.storage
           .from('seat-photos')
           .upload(filePath, file, {
             cacheControl: '3600',
@@ -133,8 +135,11 @@ export default function BulkUploadPage() {
           })
 
         if (uploadError) {
-          throw uploadError
+          console.error('Upload error:', uploadError)
+          throw new Error(`Upload failed: ${uploadError.message}`)
         }
+        
+        console.log('Upload success:', uploadData)
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
@@ -170,34 +175,21 @@ export default function BulkUploadPage() {
     const file = uploadedFiles[fileIndex]
     if (!file) return
 
-    // Move file to seat folder
-    const newPath = `${selectedVenue}/${seatId}/${file.name}`
+    console.log('Mapping file:', file.name, 'to seat:', seatId)
+    
+    // Use the original path (unmapped) - no need to copy
+    // The photo record just needs to reference the seat_id
     
     try {
-      // Copy to new location
-      const { error: copyError } = await supabase.storage
-        .from('seat-photos')
-        .copy(file.path, newPath)
-
-      if (copyError) {
-        // If copy fails, try direct upload with new path
-        console.log('Copy failed, file will remain in unmapped')
-      }
-
-      // Get public URL for new path
-      const { data: { publicUrl } } = supabase.storage
-        .from('seat-photos')
-        .getPublicUrl(newPath)
-
       // Determine file type
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
       const isDng = fileExtension === 'dng'
 
-      // Save to database
+      // Save to database with original path
       const { error: dbError } = await supabase.from('photos').upsert({
         seat_id: seatId,
-        storage_path: newPath,
-        public_url: publicUrl,
+        storage_path: file.path,
+        public_url: file.publicUrl,
         file_size: file.size,
         metadata: {
           original_name: file.name,
@@ -209,16 +201,19 @@ export default function BulkUploadPage() {
       })
 
       if (dbError) {
-        throw dbError
+        console.error('Database error:', dbError)
+        throw new Error(dbError.message)
       }
 
       // Update local state
       const newUploaded = [...uploadedFiles]
       newUploaded[fileIndex] = { ...file, seatId }
       setUploadedFiles(newUploaded)
-    } catch (error) {
+      
+      console.log('Successfully mapped file to seat')
+    } catch (error: any) {
       console.error('Error mapping file:', error)
-      alert('Failed to map file to seat')
+      alert('Failed to map file to seat: ' + (error.message || 'Unknown error'))
     }
   }
 
