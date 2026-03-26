@@ -97,17 +97,19 @@ export default function SectionPage() {
     }
 
     try {
-      const { data: session } = await supabase.auth.getSession()
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
       
-      if (!session.data.session) {
+      if (sessionError || !sessionData?.session) {
         alert('You must be logged in to create a link')
         return
       }
+      
+      const userId = sessionData.session.user.id
 
       const { data: linkData, error } = await supabase
         .from('share_links')
         .insert({
-          created_by: session.data.session.user.id,
+          created_by: userId,
           venue_id: section?.venue_id,
           client_name: clientName,
           client_phone: clientPhone,
