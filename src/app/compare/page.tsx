@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { PanoramaViewer } from '@/components/viewer/PanoramaViewer'
-import { Eye, X, Check, MapPin, ArrowLeft, Share2 } from 'lucide-react'
+import { Eye, Check, MapPin, ArrowLeft, Share2 } from 'lucide-react'
 
 interface CompareSeat {
   id: string
