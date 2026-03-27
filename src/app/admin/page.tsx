@@ -236,7 +236,7 @@ export default function AdminDashboard() {
                       Setup
                     </Link>
                     <Link
-                      href="/admin/unmapped"
+                      href={`/admin/venues/${venue.id}/upload`}
                       className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       Upload
