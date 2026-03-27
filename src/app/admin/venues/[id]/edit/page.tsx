@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Building2, MapPin, Save, Trash2, AlertTriangle, Upload, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Building2, MapPin, Save, Trash2, AlertTriangle, Upload, ImageIcon, Plus } from 'lucide-react'
 
 interface Venue {
   id: string
@@ -51,6 +51,12 @@ export default function EditVenuePage() {
   const [venueSlug, setVenueSlug] = useState('')
   const [venueAvatar, setVenueAvatar] = useState<string | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+
+  // New seat form states
+  const [newSeatSection, setNewSeatSection] = useState('')
+  const [newSeatRow, setNewSeatRow] = useState('')
+  const [newSeatNumber, setNewSeatNumber] = useState('')
+  const [newSeatPrice, setNewSeatPrice] = useState('')
 
   useEffect(() => {
     loadVenue()
@@ -208,6 +214,48 @@ export default function EditVenuePage() {
     if (!confirm('Delete this seat?')) return
     await supabase.from('seats').delete().eq('id', seatId)
     loadVenue()
+  }
+
+  const updateSeatPrice = async (seatId: string, price: string) => {
+    const { error } = await supabase
+      .from('seats')
+      .update({ price: price ? parseFloat(price) : null })
+      .eq('id', seatId)
+
+    if (error) {
+      alert('Error updating price: ' + error.message)
+    } else {
+      // Update local state
+      setSeats(prev => prev.map(s => 
+        s.id === seatId ? { ...s, price: price ? parseFloat(price) : undefined } : s
+      ))
+    }
+  }
+
+  const addNewSeat = async () => {
+    if (!newSeatRow || !newSeatNumber) return
+
+    const { error } = await supabase
+      .from('seats')
+      .insert({
+        row_id: newSeatRow,
+        seat_number: newSeatNumber,
+        price: newSeatPrice ? parseFloat(newSeatPrice) : null,
+      })
+
+    if (error) {
+      alert('Error adding seat: ' + error.message)
+      return
+    }
+
+    // Reset form
+    setNewSeatNumber('')
+    setNewSeatPrice('')
+    
+    // Reload seats
+    loadVenue()
+    
+    alert('Seat added!')
   }
 
   if (loading) {
@@ -441,37 +489,116 @@ export default function EditVenuePage() {
 
         {/* Seats Tab */}
         {activeTab === 'seats' && (
-          <div className="card-premium overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-900">Seats</h2>
+          <div className="space-y-6">
+            {/* Add New Seat */}
+            <div className="card-premium p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Add New Seat</h3>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Section</label>
+                  <select
+                    value={newSeatSection}
+                    onChange={(e) => setNewSeatSection(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                  >
+                    <option value="">Select...</option>
+                    {sections.map(s => (
+                      <option key={s.id} value={s.id}>Section {s.section_number}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Row</label>
+                  <select
+                    value={newSeatRow}
+                    onChange={(e) => setNewSeatRow(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                    disabled={!newSeatSection}
+                  >
+                    <option value="">Select...</option>
+                    {rows.filter(r => r.section_id === newSeatSection).map(r => (
+                      <option key={r.id} value={r.id}>Row {r.row_number}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Seat Number</label>
+                  <input
+                    type="text"
+                    value={newSeatNumber}
+                    onChange={(e) => setNewSeatNumber(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                    placeholder="1, 2, A, B..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Price ($)</label>
+                  <input
+                    type="number"
+                    value={newSeatPrice}
+                    onChange={(e) => setNewSeatPrice(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={addNewSeat}
+                    disabled={!newSeatRow || !newSeatNumber}
+                    className="w-full btn-primary py-3 disabled:opacity-50"
+                  >
+                    <Plus className="w-4 h-4 inline mr-2" />
+                    Add Seat
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-              {rows.map((row) => {
-                const rowSeats = seats.filter(s => s.row_id === row.id)
-                const section = sections.find(s => s.id === row.section_id)
-                return (
-                  <div key={row.id} className="px-6 py-3">
-                    <p className="text-sm font-medium text-slate-700 mb-2">
-                      Section {section?.section_number}, Row {row.row_number}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {rowSeats.map((seat) => (
-                        <button
-                          key={seat.id}
-                          onClick={() => deleteSeat(seat.id)}
-                          className="w-8 h-8 bg-slate-100 hover:bg-red-100 hover:text-red-600 rounded text-xs font-medium text-slate-600 transition-colors"
-                          title={`Seat ${seat.seat_number} (click to delete)`}
-                        >
-                          {seat.seat_number}
-                        </button>
-                      ))}
-                      {rowSeats.length === 0 && (
-                        <span className="text-sm text-slate-400">No seats</span>
-                      )}
+
+            {/* Existing Seats */}
+            <div className="card-premium overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900">Existing Seats</h2>
+                <span className="text-sm text-slate-500">{seats.length} total</span>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                {rows.map((row) => {
+                  const rowSeats = seats.filter(s => s.row_id === row.id)
+                  const section = sections.find(s => s.id === row.section_id)
+                  if (rowSeats.length === 0) return null
+                  return (
+                    <div key={row.id} className="px-6 py-4">
+                      <p className="text-sm font-medium text-slate-700 mb-3">
+                        Section {section?.section_number}, Row {row.row_number}
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                        {rowSeats.map((seat) => (
+                          <div
+                            key={seat.id}
+                            className="p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-bold text-slate-900">{seat.seat_number}</span>
+                              <button
+                                onClick={() => deleteSeat(seat.id)}
+                                className="text-red-400 hover:text-red-600"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              value={seat.price || ''}
+                              onChange={(e) => updateSeatPrice(seat.id, e.target.value)}
+                              className="w-full px-2 py-1 text-sm bg-white border border-slate-200 rounded text-slate-700 focus:border-blue-500 outline-none"
+                              placeholder="Price"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
         )}
