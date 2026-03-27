@@ -24,28 +24,27 @@ export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) 
         overflow: 'hidden',
       }}
     >
-      {/* Base gradient */}
+      {/* Base gradient - more visible */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 50%, rgba(59, 130, 246, 0.1) 100%)',
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 50%, rgba(99, 102, 241, 0.2) 100%)',
         }}
       />
       
-      {/* Animated orbs */}
+      {/* Animated orbs - much more visible */}
       <motion.div
         className="absolute rounded-full"
         style={{
-          width: '600px',
-          height: '600px',
-          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-          top: '-200px',
+          width: '800px',
+          height: '800px',
+          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.6) 0%, rgba(59, 130, 246, 0.2) 40%, transparent 70%)',
+          top: '-300px',
           left: '-200px',
         }}
         animate={{
-          x: [0, 100, 0],
-          y: [0, 50, 0],
+          x: [0, 150, 0],
+          y: [0, 100, 0],
         }}
         transition={{
           duration: 8,
@@ -57,16 +56,15 @@ export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) 
       <motion.div
         className="absolute rounded-full"
         style={{
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-          bottom: '-100px',
-          right: '-100px',
+          width: '700px',
+          height: '700px',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0.15) 40%, transparent 70%)',
+          bottom: '-200px',
+          right: '-150px',
         }}
         animate={{
-          x: [0, -80, 0],
-          y: [0, -60, 0],
+          x: [0, -120, 0],
+          y: [0, -80, 0],
         }}
         transition={{
           duration: 10,
@@ -78,18 +76,17 @@ export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) 
       <motion.div
         className="absolute rounded-full"
         style={{
-          width: '400px',
-          height: '400px',
-          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%)',
-          filter: 'blur(50px)',
-          top: '50%',
-          left: '50%',
-          marginLeft: '-200px',
-          marginTop: '-200px',
+          width: '600px',
+          height: '600px',
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.5) 0%, rgba(99, 102, 241, 0.1) 40%, transparent 70%)',
+          top: '40%',
+          left: '60%',
+          marginLeft: '-300px',
+          marginTop: '-300px',
         }}
         animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.5, 0.8, 0.5],
+          scale: [1, 1.3, 1],
+          opacity: [0.6, 1, 0.6],
         }}
         transition={{
           duration: 6,
