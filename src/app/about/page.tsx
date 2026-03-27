@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Eye, Smartphone, Share2, Check } from 'lucide-react'
+import { ArrowLeft, Eye, Smartphone, Share2, Check, Move } from 'lucide-react'
 
 export default function AboutPage() {
   return (
@@ -64,7 +64,7 @@ export default function AboutPage() {
           </div>
           <div className="card-premium p-6 text-center">
             <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Smartphone className="w-7 h-7 text-purple-600" />
+              <Move className="w-7 h-7 text-purple-600" />
             </div>
             <h3 className="font-bold text-slate-900 mb-2">Gyroscope Enabled</h3>
             <p className="text-slate-600 text-sm">
