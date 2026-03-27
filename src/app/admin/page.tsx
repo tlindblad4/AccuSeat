@@ -237,9 +237,9 @@ export default function AdminDashboard() {
                     </Link>
                     <Link
                       href={`/admin/venues/${venue.id}/upload`}
-                      className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                     >
-                      Upload
+                      Bulk Upload
                     </Link>
                   </div>
                 </div>
