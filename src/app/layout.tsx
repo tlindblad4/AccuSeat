@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import BackgroundBeams from "@/components/ui/BackgroundBeams";
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
@@ -19,8 +20,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="light">
-      <body className={`${inter.variable} font-sans`}>
-        {children}
+      <body className={`${inter.variable} font-sans relative`}>
+        <BackgroundBeams className="fixed inset-0 z-0" />
+        <div className="relative z-10">
+          {children}
+        </div>
       </body>
     </html>
   );
