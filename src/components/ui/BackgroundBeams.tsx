@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import React from 'react'
-import { cn } from '@/lib/utils'
 
 export interface BackgroundBeamsProps {
   className?: string
@@ -40,7 +39,7 @@ const animations = pathData.map((_, i) => ({
 
 export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) => {
   return (
-    <div className={cn('pointer-events-none absolute inset-0 h-full w-full overflow-hidden', className)}>
+    <div className={`pointer-events-none absolute inset-0 h-full w-full overflow-hidden ${className || ''}`}>
       <svg
         className="absolute h-full w-full"
         fill="none"
