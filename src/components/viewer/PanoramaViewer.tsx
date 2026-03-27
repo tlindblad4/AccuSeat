@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Maximize2, Minimize2 } from 'lucide-react'
 
 interface PanoramaViewerProps {
   imageUrl: string
@@ -15,9 +16,11 @@ declare global {
 
 export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !containerRef.current) return
@@ -66,7 +69,7 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
           panorama: imageUrl,
           autoLoad: true,
           compass: false,
-          showFullscreenCtrl: true,
+          showFullscreenCtrl: false,
           showZoomCtrl: true,
           mouseZoom: true,
           doubleClickZoom: true,
@@ -97,6 +100,29 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
     }
   }, [imageUrl])
 
+  const toggleFullscreen = () => {
+    if (!wrapperRef.current) return
+
+    if (!isFullscreen) {
+      if (wrapperRef.current.requestFullscreen) {
+        wrapperRef.current.requestFullscreen()
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen()
+      }
+    }
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
   if (error) {
     return (
       <div className={`w-full h-full min-h-[400px] rounded-lg overflow-hidden bg-slate-800 flex items-center justify-center ${className}`}>
@@ -111,15 +137,26 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
 
   return (
     <div
-      ref={containerRef}
-      className={`w-full h-full min-h-[400px] rounded-lg overflow-hidden ${className}`}
-      style={{ position: 'relative' }}
+      ref={wrapperRef}
+      className={`w-full h-full min-h-[400px] rounded-lg overflow-hidden relative ${className}`}
     >
+      <div
+        ref={containerRef}
+        className="w-full h-full"
+      />
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-800 z-10">
           <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
         </div>
       )}
+      {/* Fullscreen Button */}
+      <button
+        onClick={toggleFullscreen}
+        className="absolute top-4 right-4 z-20 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm transition-colors"
+        title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+      >
+        {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+      </button>
     </div>
   )
 }
