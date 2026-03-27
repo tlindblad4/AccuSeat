@@ -18,6 +18,7 @@ export default function RepDashboard() {
   const [userVenues, setUserVenues] = useState<(UserVenue & { venue: Venue })[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
   const router = useRouter()
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function RepDashboard() {
 
     setUser(session.user)
     await loadUserVenues(session.user.id)
+    await loadUnreadCount(session.user.id)
   }
 
   const loadUserVenues = async (userId: string) => {
@@ -53,6 +55,16 @@ export default function RepDashboard() {
       setUserVenues(validVenues)
     }
     setLoading(false)
+  }
+
+  const loadUnreadCount = async (userId: string) => {
+    const { count } = await supabase
+      .from('rep_notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('read', false)
+    
+    setUnreadCount(count || 0)
   }
 
   const handleLogout = async () => {
@@ -85,6 +97,18 @@ export default function RepDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <Link 
+                href="/rep/notifications" 
+                className="relative flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 font-medium transition-all"
+              >
+                <Bell className="w-4 h-4" />
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
               <Link 
                 href="/admin" 
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 font-medium transition-all"
