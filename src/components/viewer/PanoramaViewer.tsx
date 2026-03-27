@@ -175,48 +175,42 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
   const isInFullscreen = isFullscreen || isCssFullscreen
 
   return (
-    <>
+    <div
+      ref={wrapperRef}
+      className={`${isCssFullscreen 
+        ? 'fixed inset-0 z-[9999] w-screen h-screen rounded-none' 
+        : 'w-full h-full min-h-[400px] rounded-lg'
+      } overflow-hidden relative ${className}`}
+    >
+      <style>{`
+        .pnlm-zoom-controls {
+          display: none !important;
+        }
+        .pnlm-compass {
+          display: none !important;
+        }
+        .pnlm-fullscreen-toggle-button {
+          display: none !important;
+        }
+      `}</style>
       <div
-        ref={wrapperRef}
-        className={`${isCssFullscreen 
-          ? 'fixed inset-0 z-[9999] w-screen h-screen rounded-none' 
-          : 'w-full h-full min-h-[400px] rounded-lg'
-        } overflow-hidden relative ${className}`}
-      >
-        <style>{`
-          .pnlm-zoom-controls {
-            display: none !important;
-          }
-          .pnlm-compass {
-            display: none !important;
-          }
-          .pnlm-fullscreen-toggle-button {
-            display: none !important;
-          }
-        `}</style>
-        <div
-          ref={containerRef}
-          className="w-full h-full"
-        />
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-800 z-10">
-            <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
-          </div>
-        )}
-      </div>
-      {/* Fullscreen Button - Outside the viewer to avoid click interception */}
+        ref={containerRef}
+        className="w-full h-full"
+      />
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-800 z-10">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+        </div>
+      )}
+      {/* Fullscreen Button */}
       <button
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          toggleFullscreen()
-        }}
-        className={`${isCssFullscreen ? 'fixed' : 'absolute'} top-4 right-4 z-[10000] p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg transition-colors`}
-        style={{ position: isCssFullscreen ? 'fixed' : 'absolute' }}
+        onClick={toggleFullscreen}
+        className="absolute top-4 right-4 z-50 p-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl shadow-lg transition-all"
         title={isInFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+        type="button"
       >
         {isInFullscreen ? <Minimize2 className="w-6 h-6" /> : <Maximize2 className="w-6 h-6" />}
       </button>
-    </>
+    </div>
   )
 }
