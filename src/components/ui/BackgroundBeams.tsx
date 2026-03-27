@@ -9,87 +9,93 @@ export interface BackgroundBeamsProps {
 
 export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) => {
   return (
-    <div className={`pointer-events-none fixed inset-0 h-full w-full ${className || ''}`} style={{ zIndex: 0 }}>
-      {/* Simple gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-transparent to-purple-50/50" />
+    <div 
+      className={`pointer-events-none ${className || ''}`} 
+      style={{ 
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: -1,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Base gradient */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 50%, rgba(59, 130, 246, 0.1) 100%)',
+        }}
+      />
       
-      {/* Animated beams container */}
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox="0 0 1000 600"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        preserveAspectRatio="xMidYMid slice"
-      >
-        {/* Generate multiple beam lines */}
-        {Array.from({ length: 12 }).map((_, i) => {
-          const yOffset = i * 50
-          return (
-            <motion.line
-              key={i}
-              x1="-100"
-              y1={yOffset}
-              x2="1100"
-              y2={yOffset + 200}
-              stroke="url(#beamGradient)"
-              strokeWidth="2"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{
-                pathLength: [0, 1],
-                opacity: [0, 0.5, 0.5, 0],
-                x1: [-100, 1100],
-                x2: [-100, 1100],
-              }}
-              transition={{
-                duration: 3 + (i % 4),
-                delay: i * 0.3,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-          )
-        })}
+      {/* Animated orbs */}
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: '600px',
+          height: '600px',
+          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+          top: '-200px',
+          left: '-200px',
+        }}
+        animate={{
+          x: [0, 100, 0],
+          y: [0, 50, 0],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: '500px',
+          height: '500px',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+          bottom: '-100px',
+          right: '-100px',
+        }}
+        animate={{
+          x: [0, -80, 0],
+          y: [0, -60, 0],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
 
-        {/* Diagonal beams */}
-        {Array.from({ length: 8 }).map((_, i) => {
-          const xOffset = i * 120
-          return (
-            <motion.line
-              key={`diag-${i}`}
-              x1={xOffset}
-              y1="-100"
-              x2={xOffset + 300}
-              y2="700"
-              stroke="url(#beamGradient2)"
-              strokeWidth="1.5"
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: [0, 0.4, 0.4, 0],
-              }}
-              transition={{
-                duration: 4 + (i % 3),
-                delay: i * 0.5,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-          )
-        })}
-
-        <defs>
-          <linearGradient id="beamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#3B82F6" stopOpacity="0" />
-            <stop offset="30%" stopColor="#3B82F6" stopOpacity="0.8" />
-            <stop offset="70%" stopColor="#8B5CF6" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="beamGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#60A5FA" stopOpacity="0" />
-            <stop offset="50%" stopColor="#6366F1" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#A78BFA" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: '400px',
+          height: '400px',
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%)',
+          filter: 'blur(50px)',
+          top: '50%',
+          left: '50%',
+          marginLeft: '-200px',
+          marginTop: '-200px',
+        }}
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.5, 0.8, 0.5],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
     </div>
   )
 })
