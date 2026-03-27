@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Maximize2, X, ExternalLink } from 'lucide-react'
+import { Maximize2, X } from 'lucide-react'
 
 interface PanoramaViewerProps {
   imageUrl: string
@@ -103,10 +103,6 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
     }
   }, [imageUrl])
 
-  const openInNewTab = () => {
-    window.open(imageUrl, '_blank')
-  }
-
   const openModal = () => {
     setShowModal(true)
     // Initialize modal viewer after render
@@ -189,15 +185,6 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
           type="button"
         >
           <Maximize2 className="w-6 h-6" />
-        </button>
-        {/* Open in New Tab Button */}
-        <button
-          onClick={openInNewTab}
-          className="absolute top-4 right-16 z-50 p-3 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white rounded-xl shadow-lg transition-all"
-          title="Open in New Tab"
-          type="button"
-        >
-          <ExternalLink className="w-6 h-6" />
         </button>
       </div>
 
