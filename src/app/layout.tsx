@@ -34,6 +34,7 @@ export default function RootLayout({
         >
           {/* Blue orb top-left */}
           <div 
+            className="animate-float-slow"
             style={{
               position: 'absolute',
               width: '600px',
@@ -42,6 +43,7 @@ export default function RootLayout({
               background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0.1) 50%, transparent 70%)',
               top: '-200px',
               left: '-100px',
+              animation: 'float1 8s ease-in-out infinite',
             }}
           />
           {/* Purple orb bottom-right */}
@@ -54,6 +56,7 @@ export default function RootLayout({
               background: 'radial-gradient(circle, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0.1) 50%, transparent 70%)',
               bottom: '-150px',
               right: '-100px',
+              animation: 'float2 10s ease-in-out infinite',
             }}
           />
           {/* Indigo orb center-right */}
@@ -66,6 +69,20 @@ export default function RootLayout({
               background: 'radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%)',
               top: '30%',
               right: '10%',
+              animation: 'float3 6s ease-in-out infinite',
+            }}
+          />
+          {/* Additional pink orb */}
+          <div 
+            style={{
+              position: 'absolute',
+              width: '350px',
+              height: '350px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%)',
+              bottom: '20%',
+              left: '5%',
+              animation: 'float4 12s ease-in-out infinite',
             }}
           />
         </div>
