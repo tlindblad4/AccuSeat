@@ -14,7 +14,8 @@ import {
   Bell,
   LogOut,
   Plus,
-  ArrowRight
+  ArrowRight,
+  BarChart3
 } from 'lucide-react'
 
 export default function AdminDashboard() {
@@ -151,7 +152,22 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <Link
+            href="/admin/analytics"
+            className="group card-premium p-6 hover:scale-[1.02] transition-all duration-300"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-500/25 group-hover:scale-110 transition-transform">
+                <BarChart3 className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">Analytics</h3>
+                <p className="text-sm text-slate-500">View insights & reports</p>
+              </div>
+            </div>
+          </Link>
+
           <Link
             href="/admin/venues/new"
             className="group card-premium p-6 hover:scale-[1.02] transition-all duration-300"
