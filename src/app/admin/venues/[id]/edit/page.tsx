@@ -58,6 +58,10 @@ export default function EditVenuePage() {
   const [newSeatNumber, setNewSeatNumber] = useState('')
   const [newSeatPrice, setNewSeatPrice] = useState('')
 
+  // New row form states
+  const [newRowSection, setNewRowSection] = useState('')
+  const [newRowNumber, setNewRowNumber] = useState('')
+
   useEffect(() => {
     loadVenue()
   }, [venueId])
@@ -258,6 +262,30 @@ export default function EditVenuePage() {
     alert('Seat added!')
   }
 
+  const addNewRow = async () => {
+    if (!newRowSection || !newRowNumber) return
+
+    const { error } = await supabase
+      .from('rows')
+      .insert({
+        section_id: newRowSection,
+        row_number: newRowNumber,
+      })
+
+    if (error) {
+      alert('Error adding row: ' + error.message)
+      return
+    }
+
+    // Reset form
+    setNewRowNumber('')
+    
+    // Reload rows
+    loadVenue()
+    
+    alert('Row added!')
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -447,42 +475,86 @@ export default function EditVenuePage() {
 
         {/* Rows Tab */}
         {activeTab === 'rows' && (
-          <div className="card-premium overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-900">Rows</h2>
+          <div className="space-y-6">
+            {/* Add New Row */}
+            <div className="card-premium p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Add New Row</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Section</label>
+                  <select
+                    value={newRowSection}
+                    onChange={(e) => setNewRowSection(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                  >
+                    <option value="">Select...</option>
+                    {sections.map(s => (
+                      <option key={s.id} value={s.id}>Section {s.section_number}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Row Number</label>
+                  <input
+                    type="text"
+                    value={newRowNumber}
+                    onChange={(e) => setNewRowNumber(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                    placeholder="A, B, 1, 2..."
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={addNewRow}
+                    disabled={!newRowSection || !newRowNumber}
+                    className="w-full btn-primary py-3 disabled:opacity-50"
+                  >
+                    <Plus className="w-4 h-4 inline mr-2" />
+                    Add Row
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="divide-y divide-slate-100">
-              {sections.map((section) => {
-                const sectionRows = rows.filter(r => r.section_id === section.id)
-                return (
-                  <div key={section.id} className="px-6 py-4">
-                    <p className="font-semibold text-slate-900 mb-2">
-                      Section {section.section_number}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {sectionRows.map((row) => (
-                        <div
-                          key={row.id}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg"
-                        >
-                          <span className="text-sm font-medium text-slate-700">
-                            Row {row.row_number}
-                          </span>
-                          <button
-                            onClick={() => deleteRow(row.id)}
-                            className="text-red-500 hover:text-red-600"
+
+            {/* Existing Rows */}
+            <div className="card-premium overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900">Existing Rows</h2>
+                <span className="text-sm text-slate-500">{rows.length} total</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {sections.map((section) => {
+                  const sectionRows = rows.filter(r => r.section_id === section.id)
+                  return (
+                    <div key={section.id} className="px-6 py-4">
+                      <p className="font-semibold text-slate-900 mb-2">
+                        Section {section.section_number}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {sectionRows.map((row) => (
+                          <div
+                            key={row.id}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg"
                           >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                      {sectionRows.length === 0 && (
-                        <span className="text-sm text-slate-400">No rows</span>
-                      )}
+                            <span className="text-sm font-medium text-slate-700">
+                              Row {row.row_number}
+                            </span>
+                            <button
+                              onClick={() => deleteRow(row.id)}
+                              className="text-red-500 hover:text-red-600"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {sectionRows.length === 0 && (
+                          <span className="text-sm text-slate-400">No rows</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
         )}
