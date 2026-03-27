@@ -335,6 +335,13 @@ export default function EditVenuePage() {
               {tab.label}
             </button>
           ))}
+          <Link
+            href={`/admin/venues/${venueId}/upload`}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+          >
+            <Upload className="w-4 h-4" />
+            Bulk Upload
+          </Link>
         </div>
 
         {/* Details Tab */}

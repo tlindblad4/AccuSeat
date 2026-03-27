@@ -17,6 +17,7 @@
     "pannellum": "^2.5.7",
     "react": "^18",
     "react-dom": "^18",
+    "react-dropzone": "^15.0.0",
     "react-pannellum": "^0.2.16"
   },
   "devDependencies": {
