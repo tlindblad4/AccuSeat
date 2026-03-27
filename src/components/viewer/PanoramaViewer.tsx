@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Maximize2, Minimize2 } from 'lucide-react'
+import { Maximize2, X, ExternalLink } from 'lucide-react'
 
 interface PanoramaViewerProps {
   imageUrl: string
@@ -16,12 +16,12 @@ declare global {
 
 export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const wrapperRef = useRef<HTMLDivElement>(null)
+  const modalContainerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
+  const modalViewerRef = useRef<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isCssFullscreen, setIsCssFullscreen] = useState(false)
+  const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !containerRef.current) return
@@ -103,62 +103,46 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
     }
   }, [imageUrl])
 
-  const toggleFullscreen = () => {
-    if (!wrapperRef.current) return
-
-    // Check if fullscreen API is supported
-    const isFullscreenSupported = !!(
-      document.fullscreenEnabled ||
-      (document as any).webkitFullscreenEnabled ||
-      (document as any).mozFullScreenEnabled ||
-      (document as any).msFullscreenEnabled
-    )
-
-    if (isFullscreenSupported) {
-      if (!isFullscreen) {
-        const requestFullscreen =
-          wrapperRef.current.requestFullscreen ||
-          (wrapperRef.current as any).webkitRequestFullscreen ||
-          (wrapperRef.current as any).mozRequestFullScreen ||
-          (wrapperRef.current as any).msRequestFullscreen
-
-        if (requestFullscreen) {
-          requestFullscreen.call(wrapperRef.current)
-        }
-      } else {
-        const exitFullscreen =
-          document.exitFullscreen ||
-          (document as any).webkitExitFullscreen ||
-          (document as any).mozCancelFullScreen ||
-          (document as any).msExitFullscreen
-
-        if (exitFullscreen) {
-          exitFullscreen.call(document)
-        }
-      }
-    } else {
-      // Fallback: use CSS fullscreen for iOS Safari
-      setIsCssFullscreen(!isCssFullscreen)
-    }
+  const openInNewTab = () => {
+    window.open(imageUrl, '_blank')
   }
 
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
+  const openModal = () => {
+    setShowModal(true)
+    // Initialize modal viewer after render
+    setTimeout(() => {
+      if (modalContainerRef.current && window.pannellum && !modalViewerRef.current) {
+        modalViewerRef.current = window.pannellum.viewer(modalContainerRef.current, {
+          type: 'equirectangular',
+          panorama: imageUrl,
+          autoLoad: true,
+          compass: false,
+          showFullscreenCtrl: false,
+          showZoomCtrl: true,
+          mouseZoom: true,
+          doubleClickZoom: false,
+          draggable: true,
+          disableKeyboardCtrl: false,
+          touchmoveTwoFingers: false,
+          deviceOrientationControl: true,
+          friction: 0.8,
+          pitch: 0,
+          yaw: 0,
+          hfov: 100,
+          minHfov: 50,
+          maxHfov: 120,
+        })
+      }
+    }, 100)
+  }
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange)
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange)
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange)
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange)
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange)
+  const closeModal = () => {
+    if (modalViewerRef.current) {
+      modalViewerRef.current.destroy()
+      modalViewerRef.current = null
     }
-  }, [])
+    setShowModal(false)
+  }
 
   if (error) {
     return (
@@ -172,45 +156,68 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
     )
   }
 
-  const isInFullscreen = isFullscreen || isCssFullscreen
-
   return (
-    <div
-      ref={wrapperRef}
-      className={`${isCssFullscreen 
-        ? 'fixed inset-0 z-[9999] w-screen h-screen rounded-none' 
-        : 'w-full h-full min-h-[400px] rounded-lg'
-      } overflow-hidden relative ${className}`}
-    >
-      <style>{`
-        .pnlm-zoom-controls {
-          display: none !important;
-        }
-        .pnlm-compass {
-          display: none !important;
-        }
-        .pnlm-fullscreen-toggle-button {
-          display: none !important;
-        }
-      `}</style>
+    <>
       <div
-        ref={containerRef}
-        className="w-full h-full"
-      />
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-800 z-10">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+        className={`w-full h-full min-h-[400px] rounded-lg overflow-hidden relative ${className}`}
+      >
+        <style>{`
+          .pnlm-zoom-controls {
+            display: none !important;
+          }
+          .pnlm-compass {
+            display: none !important;
+          }
+          .pnlm-fullscreen-toggle-button {
+            display: none !important;
+          }
+        `}</style>
+        <div
+          ref={containerRef}
+          className="w-full h-full"
+        />
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-800 z-10">
+            <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+          </div>
+        )}
+        {/* Expand Button */}
+        <button
+          onClick={openModal}
+          className="absolute top-4 right-4 z-50 p-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl shadow-lg transition-all"
+          title="Expand View"
+          type="button"
+        >
+          <Maximize2 className="w-6 h-6" />
+        </button>
+        {/* Open in New Tab Button */}
+        <button
+          onClick={openInNewTab}
+          className="absolute top-4 right-16 z-50 p-3 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white rounded-xl shadow-lg transition-all"
+          title="Open in New Tab"
+          type="button"
+        >
+          <ExternalLink className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Modal Overlay */}
+      {showModal && (
+        <div className="fixed inset-0 z-[9999] bg-black">
+          <div
+            ref={modalContainerRef}
+            className="w-full h-full"
+          />
+          <button
+            onClick={closeModal}
+            className="absolute top-4 right-4 z-[10000] p-3 bg-white/20 hover:bg-white/30 text-white rounded-xl backdrop-blur-sm transition-all"
+            title="Close"
+            type="button"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
       )}
-      {/* Fullscreen Button */}
-      <button
-        onClick={toggleFullscreen}
-        className="absolute top-4 right-4 z-50 p-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl shadow-lg transition-all"
-        title={isInFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-        type="button"
-      >
-        {isInFullscreen ? <Minimize2 className="w-6 h-6" /> : <Maximize2 className="w-6 h-6" />}
-      </button>
-    </div>
+    </>
   )
 }
