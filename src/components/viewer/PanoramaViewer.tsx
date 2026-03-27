@@ -73,7 +73,7 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
           showFullscreenCtrl: false,
           showZoomCtrl: true,
           mouseZoom: true,
-          doubleClickZoom: true,
+          doubleClickZoom: false,
           draggable: true,
           disableKeyboardCtrl: false,
           touchmoveTwoFingers: false,
@@ -82,6 +82,8 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
           pitch: 0,
           yaw: 0,
           hfov: 100,
+          minHfov: 50,
+          maxHfov: 120,
         })
         setLoading(false)
       } catch (err: any) {
@@ -180,6 +182,14 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
         : 'w-full h-full min-h-[400px] rounded-lg'
       } overflow-hidden relative ${className}`}
     >
+      <style>{`
+        .pnlm-controls {
+          display: none !important;
+        }
+        .pnlm-compass {
+          display: none !important;
+        }
+      `}</style>
       <div
         ref={containerRef}
         className="w-full h-full"
@@ -192,10 +202,10 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
       {/* Fullscreen Button */}
       <button
         onClick={toggleFullscreen}
-        className="absolute top-4 right-4 z-20 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm transition-colors"
+        className="absolute top-4 right-4 z-[100] p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg transition-colors"
         title={isInFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
       >
-        {isInFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+        {isInFullscreen ? <Minimize2 className="w-6 h-6" /> : <Maximize2 className="w-6 h-6" />}
       </button>
     </div>
   )
