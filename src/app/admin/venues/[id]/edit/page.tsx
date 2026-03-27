@@ -43,7 +43,7 @@ export default function EditVenuePage() {
   const [seats, setSeats] = useState<Seat[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'details' | 'sections' | 'rows' | 'seats'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'sections' | 'rows' | 'seats'>('seats')
 
   // Form states
   const [venueName, setVenueName] = useState('')
