@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { PanoramaViewer } from '@/components/viewer/PanoramaViewer'
-import { Eye, MapPin, ThumbsUp, ThumbsDown, Check } from 'lucide-react'
+import { Eye, MapPin, ThumbsUp, ThumbsDown, Check, Phone, Share2, Users, X } from 'lucide-react'
 
 interface SharedSeat {
   id: string
@@ -28,6 +28,13 @@ export default function ViewPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+  const [showCallbackModal, setShowCallbackModal] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [callbackPhone, setCallbackPhone] = useState('')
+  const [callbackName, setCallbackName] = useState('')
+  const [callbackSubmitted, setCallbackSubmitted] = useState(false)
+  const [shareEmails, setShareEmails] = useState('')
+  const [shareSubmitted, setShareSubmitted] = useState(false)
 
   useEffect(() => {
     loadSharedSeat()
@@ -130,6 +137,48 @@ export default function ViewPage() {
     })
 
     setFeedbackSubmitted(true)
+  }
+
+  const handleRequestCallback = async () => {
+    if (!seat || !callbackPhone) return
+
+    const { data: linkData } = await supabase
+      .from('share_links')
+      .select('*')
+      .eq('token', token)
+      .single()
+
+    if (!linkData) return
+
+    await supabase.from('rep_notifications').insert({
+      user_id: linkData.created_by,
+      type: 'callback_request',
+      title: '📞 Callback Requested!',
+      message: `${callbackName || 'A prospect'} wants a call about Section ${seat.section_number}, Row ${seat.row_number}, Seat ${seat.seat_number}. Phone: ${callbackPhone}`,
+      share_link_id: linkData.id,
+      seat_id: seat.id,
+    })
+
+    setCallbackSubmitted(true)
+    setShowCallbackModal(false)
+  }
+
+  const handleShareWithGroup = async () => {
+    if (!seat || !shareEmails) return
+
+    const emails = shareEmails.split(',').map(e => e.trim()).filter(e => e)
+    
+    // In a real app, you'd send emails here
+    // For now, just copy the link to clipboard
+    const shareUrl = window.location.href
+    navigator.clipboard.writeText(shareUrl)
+
+    setShareSubmitted(true)
+    setTimeout(() => {
+      setShowShareModal(false)
+      setShareSubmitted(false)
+      setShareEmails('')
+    }, 2000)
   }
 
   if (loading) {
@@ -248,6 +297,35 @@ export default function ViewPage() {
         </div>
 
         {/* Feedback */}
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <button
+            onClick={() => setShowCallbackModal(true)}
+            className="card-premium p-4 flex items-center gap-3 hover:scale-[1.02] transition-transform"
+          >
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <Phone className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-slate-900">Request Callback</p>
+              <p className="text-sm text-slate-500">Have a rep call you</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="card-premium p-4 flex items-center gap-3 hover:scale-[1.02] transition-transform"
+          >
+            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+              <Users className="w-5 h-5 text-purple-600" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-slate-900">Share with Group</p>
+              <p className="text-sm text-slate-500">Send to friends/family</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Feedback */}
         {!feedbackSubmitted ? (
           <div className="card-premium p-6">
             <h3 className="font-bold text-slate-900 mb-4">What do you think?</h3>
@@ -273,6 +351,104 @@ export default function ViewPage() {
             <div className="flex items-center gap-3 text-emerald-700">
               <Check className="w-6 h-6" />
               <span className="font-semibold">Thanks for your feedback! The rep has been notified.</span>
+            </div>
+          </div>
+        )}
+
+        {/* Callback Modal */}
+        {showCallbackModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-slate-900">Request a Callback</h3>
+                <button onClick={() => setShowCallbackModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+              {callbackSubmitted ? (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <p className="font-semibold text-slate-900">Request sent!</p>
+                  <p className="text-slate-500">A rep will call you soon.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Your Name</label>
+                    <input
+                      type="text"
+                      value={callbackName}
+                      onChange={(e) => setCallbackName(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                      placeholder="John Smith"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Phone Number *</label>
+                    <input
+                      type="tel"
+                      value={callbackPhone}
+                      onChange={(e) => setCallbackPhone(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                  <button
+                    onClick={handleRequestCallback}
+                    disabled={!callbackPhone}
+                    className="w-full btn-primary py-3 disabled:opacity-50"
+                  >
+                    Request Callback
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Share Modal */}
+        {showShareModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-slate-900">Share with Group</h3>
+                <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+              {shareSubmitted ? (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <p className="font-semibold text-slate-900">Link copied!</p>
+                  <p className="text-slate-500">Share it with your group.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-slate-600">Share this seat with friends or family to get their opinion.</p>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Email Addresses (optional)</label>
+                    <textarea
+                      value={shareEmails}
+                      onChange={(e) => setShareEmails(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none"
+                      placeholder="email1@example.com, email2@example.com"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Separate multiple emails with commas</p>
+                  </div>
+                  <button
+                    onClick={handleShareWithGroup}
+                    className="w-full btn-primary py-3 flex items-center justify-center gap-2"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Copy Link & Share
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
