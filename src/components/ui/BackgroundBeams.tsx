@@ -39,18 +39,19 @@ const animations = pathData.map((_, i) => ({
 
 export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) => {
   return (
-    <div className={`pointer-events-none absolute inset-0 h-full w-full overflow-hidden ${className || ''}`}>
+    <div className={`pointer-events-none fixed inset-0 h-full w-full overflow-hidden ${className || ''}`} style={{ zIndex: 0 }}>
       <svg
         className="absolute h-full w-full"
         fill="none"
         viewBox="0 0 696 316"
         xmlns="http://www.w3.org/2000/svg"
-        preserveAspectRatio="xMidYMid slice"
+        preserveAspectRatio="none"
+        style={{ minWidth: '100%', minHeight: '100%' }}
       >
         {/* Static faint paths for depth - visible on light theme */}
-        <g opacity="0.08">
+        <g opacity="0.15">
           {pathData.map((d, i) => (
-            <path key={`static-${i}`} d={d} stroke="#3B82F6" strokeWidth="0.5" />
+            <path key={`static-${i}`} d={d} stroke="#3B82F6" strokeWidth="1" />
           ))}
         </g>
 
@@ -60,17 +61,18 @@ export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) 
             key={`beam-${i}`}
             d={d}
             stroke={`url(#gradient-${i})`}
-            strokeWidth="1.5"
+            strokeWidth="2"
             strokeLinecap="round"
+            fill="none"
             initial={{ pathLength: 0, opacity: 0 }}
             animate={{
               pathLength: [0, 1],
-              opacity: [0, 0.4, 0.4, 0],
+              opacity: [0, 0.6, 0.6, 0],
             }}
             transition={{
               duration: animations[i].duration,
               delay: animations[i].delay,
-              repeat: Number.POSITIVE_INFINITY,
+              repeat: Infinity,
               ease: 'easeInOut',
             }}
           />
@@ -86,11 +88,11 @@ export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) 
               x2="100%"
               y2="100%"
             >
-              <stop offset="0%" stopColor="#60A5FA" stopOpacity="0" />
-              <stop offset="20%" stopColor="#60A5FA" stopOpacity="0.8" />
-              <stop offset="50%" stopColor="#818CF8" stopOpacity="0.8" />
-              <stop offset="80%" stopColor="#A78BFA" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#A78BFA" stopOpacity="0" />
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity="0" />
+              <stop offset="20%" stopColor="#3B82F6" stopOpacity="1" />
+              <stop offset="50%" stopColor="#6366F1" stopOpacity="1" />
+              <stop offset="80%" stopColor="#8B5CF6" stopOpacity="1" />
+              <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
             </linearGradient>
           ))}
         </defs>
