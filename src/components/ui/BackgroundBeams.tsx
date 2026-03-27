@@ -8,6 +8,7 @@ export interface BackgroundBeamsProps {
 }
 
 export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) => {
+  console.log('BackgroundBeams rendering')
   return (
     <div 
       className={`pointer-events-none ${className || ''}`} 
