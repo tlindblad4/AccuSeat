@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Section, Row, Seat, Photo } from '@/types'
 import { PanoramaViewer } from '@/components/viewer/PanoramaViewer'
-import { ArrowLeft, Eye, Share2, Copy, Check, Loader2 } from 'lucide-react'
+import { ArrowLeft, Eye, Share2, Copy, Check, Loader2, GitCompare } from 'lucide-react'
 
 export default function SectionPage() {
   const params = useParams()
@@ -29,6 +29,7 @@ export default function SectionPage() {
   const [sendingSms, setSendingSms] = useState(false)
   const [smsStatus, setSmsStatus] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [compareSeats, setCompareSeats] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadSectionData()
@@ -229,13 +230,20 @@ export default function SectionPage() {
                   <button
                     key={seat.id}
                     onClick={() => handleSeatClick(seat)}
-                    className={`p-3 rounded-xl font-semibold transition-all ${
+                    className={`p-3 rounded-xl font-semibold transition-all relative ${
                       selectedSeat?.id === seat.id
                         ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25'
+                        : compareSeats.has(seat.id)
+                        ? 'bg-emerald-100 border-2 border-emerald-500 text-emerald-700'
                         : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-blue-500 hover:text-blue-600'
                     }`}
                   >
                     {seat.seat_number}
+                    {compareSeats.has(seat.id) && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-xs rounded-full flex items-center justify-center">
+                        ✓
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -252,13 +260,61 @@ export default function SectionPage() {
                     ${selectedSeat.price.toLocaleString()}
                   </p>
                 )}
-                <button
-                  onClick={() => setShowLinkBuilder(true)}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowLinkBuilder(true)}
+                    className="w-full btn-primary flex items-center justify-center gap-2"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Create Share Link
+                  </button>
+                  <button
+                    onClick={() => {
+                      const newCompare = new Set(compareSeats)
+                      if (newCompare.has(selectedSeat.id)) {
+                        newCompare.delete(selectedSeat.id)
+                      } else if (newCompare.size < 4) {
+                        newCompare.add(selectedSeat.id)
+                      } else {
+                        alert('You can compare up to 4 seats at once')
+                        return
+                      }
+                      setCompareSeats(newCompare)
+                    }}
+                    className={`w-full py-2 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors ${
+                      compareSeats.has(selectedSeat.id)
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    <GitCompare className="w-4 h-4" />
+                    {compareSeats.has(selectedSeat.id) ? 'Remove from Compare' : 'Add to Compare'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Compare Bar */}
+            {compareSeats.size > 0 && (
+              <div className="card-premium p-4 bg-blue-50 border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-semibold text-blue-900">
+                    {compareSeats.size} seat{compareSeats.size > 1 ? 's' : ''} to compare
+                  </span>
+                  <button
+                    onClick={() => setCompareSeats(new Set())}
+                    className="text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <Link
+                  href={`/compare?seats=${Array.from(compareSeats).join(',')}`}
                   className="w-full btn-primary flex items-center justify-center gap-2"
                 >
-                  <Share2 className="w-4 h-4" />
-                  Create Share Link
-                </button>
+                  <GitCompare className="w-4 h-4" />
+                  Compare Now
+                </Link>
               </div>
             )}
           </div>
