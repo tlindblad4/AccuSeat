@@ -47,25 +47,25 @@ export const BackgroundBeams = React.memo(({ className }: BackgroundBeamsProps) 
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="xMidYMid slice"
       >
-        {/* Static faint paths for depth - very subtle on light theme */}
-        <g opacity="0.02">
+        {/* Static faint paths for depth - visible on light theme */}
+        <g opacity="0.08">
           {pathData.map((d, i) => (
             <path key={`static-${i}`} d={d} stroke="#3B82F6" strokeWidth="0.5" />
           ))}
         </g>
 
-        {/* Animated gradient beams - subtle blue/purple for light theme */}
+        {/* Animated gradient beams - more visible blue/purple for light theme */}
         {pathData.map((d, i) => (
           <motion.path
             key={`beam-${i}`}
             d={d}
             stroke={`url(#gradient-${i})`}
-            strokeWidth="1"
+            strokeWidth="1.5"
             strokeLinecap="round"
             initial={{ pathLength: 0, opacity: 0 }}
             animate={{
               pathLength: [0, 1],
-              opacity: [0, 0.15, 0.15, 0],
+              opacity: [0, 0.4, 0.4, 0],
             }}
             transition={{
               duration: animations[i].duration,
