@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Sparkles, Eye, Share2 } from 'lucide-react'
+import { ArrowRight, Sparkles, Eye, Share2, Smartphone } from 'lucide-react'
 
 export default function HomePage() {
   return (
@@ -107,10 +107,10 @@ export default function HomePage() {
               color: "purple",
             },
             {
-              icon: Sparkles,
+              icon: Smartphone,
               title: "Gyroscope Enabled",
               description: "Prospects move their phone to look around. Just like being there.",
-              color: "pink",
+              color: "emerald",
             },
           ].map((feature, index) => (
             <div
