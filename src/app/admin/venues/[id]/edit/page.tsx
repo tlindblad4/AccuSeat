@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Building2, MapPin, Save, Trash2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Building2, MapPin, Save, Trash2, AlertTriangle, Upload, ImageIcon } from 'lucide-react'
 
 interface Venue {
   id: string
   name: string
   location: string
   slug: string
+  avatar_url?: string
 }
 
 interface Section {
@@ -48,6 +49,8 @@ export default function EditVenuePage() {
   const [venueName, setVenueName] = useState('')
   const [venueLocation, setVenueLocation] = useState('')
   const [venueSlug, setVenueSlug] = useState('')
+  const [venueAvatar, setVenueAvatar] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   useEffect(() => {
     loadVenue()
@@ -69,6 +72,7 @@ export default function EditVenuePage() {
     setVenueName(venueData.name)
     setVenueLocation(venueData.location || '')
     setVenueSlug(venueData.slug)
+    setVenueAvatar(venueData.avatar_url || null)
 
     // Load sections
     const { data: sectionsData } = await supabase
@@ -103,6 +107,70 @@ export default function EditVenuePage() {
     }
 
     setLoading(false)
+  }
+
+  const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingAvatar(true)
+
+    try {
+      // Upload to venue-avatars bucket
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${venueId}-${Date.now()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('venue-avatars')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        alert('Error uploading: ' + uploadError.message)
+        setUploadingAvatar(false)
+        return
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('venue-avatars')
+        .getPublicUrl(filePath)
+
+      // Update venue with avatar URL
+      const { error: updateError } = await supabase
+        .from('venues')
+        .update({ avatar_url: publicUrl })
+        .eq('id', venueId)
+
+      if (updateError) {
+        alert('Error saving avatar: ' + updateError.message)
+        setUploadingAvatar(false)
+        return
+      }
+
+      setVenueAvatar(publicUrl)
+      alert('Avatar uploaded!')
+    } catch (err: any) {
+      alert('Error: ' + err.message)
+    }
+
+    setUploadingAvatar(false)
+  }
+
+  const removeAvatar = async () => {
+    if (!confirm('Remove this avatar?')) return
+
+    const { error } = await supabase
+      .from('venues')
+      .update({ avatar_url: null })
+      .eq('id', venueId)
+
+    if (error) {
+      alert('Error removing avatar: ' + error.message)
+      return
+    }
+
+    setVenueAvatar(null)
   }
 
   const saveVenueDetails = async () => {
@@ -198,6 +266,51 @@ export default function EditVenuePage() {
           <div className="card-premium p-8">
             <h2 className="text-xl font-bold text-slate-900 mb-6">Venue Details</h2>
             <div className="space-y-6">
+              {/* Avatar Upload */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-3">
+                  Venue Avatar
+                </label>
+                <div className="flex items-center gap-6">
+                  {venueAvatar ? (
+                    <div className="relative">
+                      <img
+                        src={venueAvatar}
+                        alt="Venue avatar"
+                        className="w-24 h-24 rounded-2xl object-cover border-2 border-slate-200"
+                      />
+                      <button
+                        onClick={removeAvatar}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        title="Remove avatar"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center border-2 border-dashed border-slate-300">
+                      <ImageIcon className="w-8 h-8 text-slate-400" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium rounded-xl cursor-pointer transition-colors">
+                      <Upload className="w-4 h-4" />
+                      {uploadingAvatar ? 'Uploading...' : 'Upload Avatar'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={uploadAvatar}
+                        disabled={uploadingAvatar}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Recommended: Square image, 400x400px or larger
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Venue Name

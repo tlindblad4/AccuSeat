@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS venues (
     description TEXT,
     total_seats INTEGER,
     logo_url TEXT,
+    avatar_url TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -283,3 +284,13 @@ BEGIN
   WHERE id = link_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Storage bucket for venue avatars
+-- Run this in Supabase to create the bucket:
+-- insert into storage.buckets (id, name, public) values ('venue-avatars', 'venue-avatars', true);
+
+-- Storage policy for venue avatars (public read)
+-- CREATE POLICY "Public can view venue avatars" ON storage.objects
+--     FOR SELECT USING (bucket_id = 'venue-avatars');
+-- CREATE POLICY "Authenticated users can upload venue avatars" ON storage.objects
+--     FOR INSERT WITH CHECK (bucket_id = 'venue-avatars' AND auth.role() = 'authenticated');
