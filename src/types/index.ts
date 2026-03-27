@@ -6,6 +6,7 @@ export interface Venue {
   description?: string
   total_seats?: number
   logo_url?: string
+  avatar_url?: string
   is_active: boolean
   created_at: string
 }

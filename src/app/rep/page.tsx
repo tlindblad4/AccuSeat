@@ -133,9 +133,17 @@ export default function RepDashboard() {
               >
                 <div className="h-48 bg-gradient-to-br from-blue-100 via-purple-50 to-emerald-100 flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 group-hover:opacity-75 transition-opacity" />
-                  <div className="text-6xl font-bold text-slate-300 group-hover:scale-110 transition-transform duration-300">
-                    {userVenue.venue.name.charAt(0)}
-                  </div>
+                  {userVenue.venue.avatar_url ? (
+                    <img
+                      src={userVenue.venue.avatar_url}
+                      alt={userVenue.venue.name}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="text-6xl font-bold text-slate-300 group-hover:scale-110 transition-transform duration-300">
+                      {userVenue.venue.name.charAt(0)}
+                    </div>
+                  )}
                 </div>
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
