@@ -92,8 +92,13 @@ export default function SectionPage() {
   }
 
   const generateLink = async () => {
-    if (!selectedSeat) {
-      alert('Please select a seat first')
+    // Use compareSeats if available, otherwise use selectedSeat
+    const seatsToShare = compareSeats.size > 0 
+      ? Array.from(compareSeats).map(id => seats.find(s => s.id === id)).filter(Boolean)
+      : selectedSeat ? [selectedSeat] : []
+
+    if (seatsToShare.length === 0) {
+      alert('Please select at least one seat')
       return
     }
 
@@ -115,6 +120,7 @@ export default function SectionPage() {
           client_name: clientName,
           client_phone: clientPhone,
           notes: linkNotes,
+          is_comparison: seatsToShare.length > 1,
         })
         .select()
         .single()
@@ -130,16 +136,19 @@ export default function SectionPage() {
         return
       }
 
-      const { error: itemError } = await supabase.from('share_link_items').insert({
+      // Insert all selected seats
+      const seatItems = seatsToShare.map((seat, index) => ({
         share_link_id: linkData.id,
-        seat_id: selectedSeat.id,
-        option_order: 1,
+        seat_id: seat!.id,
+        option_order: index + 1,
         rep_notes: linkNotes,
-      })
+      }))
+
+      const { error: itemError } = await supabase.from('share_link_items').insert(seatItems)
 
       if (itemError) {
-        console.error('Error creating link item:', itemError)
-        alert('Error creating link item: ' + itemError.message)
+        console.error('Error creating link items:', itemError)
+        alert('Error creating link items: ' + itemError.message)
         return
       }
 
@@ -356,13 +365,23 @@ export default function SectionPage() {
         </div>
 
         {/* Link Builder Modal */}
-        {showLinkBuilder && selectedSeat && (
+        {showLinkBuilder && (selectedSeat || compareSeats.size > 0) && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md animate-scale-in">
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">Create Share Link</h3>
-              <p className="text-slate-600 mb-6">
-                Section {section?.section_number}, Row {selectedRowData?.row_number}, Seat {selectedSeat.seat_number}
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                {compareSeats.size > 1 ? 'Create Comparison Link' : 'Create Share Link'}
+              </h3>
+              <p className="text-slate-600 mb-2">
+                {compareSeats.size > 1 
+                  ? `${compareSeats.size} seats selected for comparison`
+                  : `Section ${section?.section_number}, Row ${selectedRowData?.row_number}, Seat ${selectedSeat?.seat_number}`
+                }
               </p>
+              {compareSeats.size > 1 && (
+                <p className="text-sm text-blue-600 mb-4">
+                  Client will be able to compare all seats side-by-side
+                </p>
+              )}
 
               {!generatedLink ? (
                 <div className="space-y-4">

@@ -25,6 +25,9 @@ export default function ViewPage() {
   const token = params.token as string
 
   const [seat, setSeat] = useState<SharedSeat | null>(null)
+  const [seats, setSeats] = useState<SharedSeat[]>([])
+  const [isComparison, setIsComparison] = useState(false)
+  const [selectedCompareSeat, setSelectedCompareSeat] = useState<SharedSeat | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
@@ -59,7 +62,9 @@ export default function ViewPage() {
       return
     }
 
-    const { data: itemData } = await supabase
+    setIsComparison(linkData.is_comparison || false)
+
+    const { data: itemsData } = await supabase
       .from('share_link_items')
       .select(`
         *,
@@ -70,41 +75,57 @@ export default function ViewPage() {
       `)
       .eq('share_link_id', linkData.id)
       .order('option_order')
-      .limit(1)
-      .single()
 
-    if (!itemData || !itemData.seat) {
-      setError('No seat found')
+    if (!itemsData || itemsData.length === 0) {
+      setError('No seats found')
       setLoading(false)
       return
     }
 
-    const seatData = itemData.seat as any
+    // Load all seats with photos
+    const loadedSeats = await Promise.all(
+      itemsData.map(async (item: any) => {
+        const seatData = item.seat as any
+        if (!seatData) return null
 
-    const { data: photoData } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('seat_id', seatData.id)
-      .single()
+        const { data: photoData } = await supabase
+          .from('photos')
+          .select('*')
+          .eq('seat_id', seatData.id)
+          .single()
 
-    setSeat({
-      id: seatData.id,
-      seat_number: seatData.seat_number,
-      price: seatData.price,
-      plan_type: seatData.plan_type,
-      term_length: seatData.term_length,
-      payment_plan: seatData.payment_plan,
-      section_number: seatData.row?.section?.section_number,
-      row_number: seatData.row?.row_number,
-      venue_name: seatData.row?.section?.venue?.name,
-      photo_url: photoData?.public_url,
-      rep_notes: itemData.rep_notes,
-    })
+        return {
+          id: seatData.id,
+          seat_number: seatData.seat_number,
+          price: seatData.price,
+          plan_type: seatData.plan_type,
+          term_length: seatData.term_length,
+          payment_plan: seatData.payment_plan,
+          section_number: seatData.row?.section?.section_number,
+          row_number: seatData.row?.row_number,
+          venue_name: seatData.row?.section?.venue?.name,
+          photo_url: photoData?.public_url,
+          rep_notes: item.rep_notes,
+        }
+      })
+    )
+
+    const validSeats = loadedSeats.filter(Boolean) as SharedSeat[]
+    
+    if (validSeats.length === 0) {
+      setError('No seats found')
+      setLoading(false)
+      return
+    }
+
+    setSeats(validSeats)
+    setSeat(validSeats[0])
+    setSelectedCompareSeat(validSeats[0])
 
     await supabase.from('analytics_events').insert({
       share_link_id: linkData.id,
       event_type: 'view',
-      seat_id: seatData.id,
+      seat_id: validSeats[0].id,
     })
 
     setLoading(false)
@@ -225,11 +246,40 @@ export default function ViewPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
+        {/* Comparison Selector */}
+        {isComparison && seats.length > 1 && (
+          <div className="card-premium p-4 mb-6">
+            <h3 className="font-bold text-slate-900 mb-3">Compare Seats ({seats.length})</h3>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {seats.map((s, index) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedCompareSeat(s)}
+                  className={`flex-shrink-0 p-3 rounded-xl border-2 transition-all ${
+                    selectedCompareSeat?.id === s.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  <p className="font-semibold text-slate-900">Option {index + 1}</p>
+                  <p className="text-sm text-slate-500">
+                    Sec {s.section_number}, Row {s.row_number}
+                  </p>
+                  <p className="text-sm text-slate-500">Seat {s.seat_number}</p>
+                  {s.price && (
+                    <p className="text-emerald-600 font-semibold">${s.price.toLocaleString()}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 360° Viewer */}
-        {seat.photo_url ? (
+        {(selectedCompareSeat || seat)?.photo_url ? (
           <div className="card-premium overflow-hidden mb-6">
             <div className="h-[400px] md:h-[500px]">
-              <PanoramaViewer imageUrl={seat.photo_url} />
+              <PanoramaViewer imageUrl={(selectedCompareSeat || seat)!.photo_url!} />
             </div>
             <div className="p-4 bg-slate-50 border-t border-slate-100">
               <div className="flex items-center gap-2 text-slate-600">
@@ -249,49 +299,51 @@ export default function ViewPage() {
 
         {/* Seat Info */}
         <div className="card-premium p-6 mb-6">
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Your Seat</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">
+            {isComparison ? 'Selected Seat' : 'Your Seat'}
+          </h2>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-slate-50 rounded-xl p-4">
               <p className="text-sm text-slate-500 mb-1">Section</p>
-              <p className="text-lg font-bold text-slate-900">{seat.section_number || 'N/A'}</p>
+              <p className="text-lg font-bold text-slate-900">{(selectedCompareSeat || seat)?.section_number || 'N/A'}</p>
             </div>
             <div className="bg-slate-50 rounded-xl p-4">
               <p className="text-sm text-slate-500 mb-1">Row</p>
-              <p className="text-lg font-bold text-slate-900">{seat.row_number || 'N/A'}</p>
+              <p className="text-lg font-bold text-slate-900">{(selectedCompareSeat || seat)?.row_number || 'N/A'}</p>
             </div>
             <div className="bg-slate-50 rounded-xl p-4">
               <p className="text-sm text-slate-500 mb-1">Seat</p>
-              <p className="text-lg font-bold text-slate-900">{seat.seat_number}</p>
+              <p className="text-lg font-bold text-slate-900">{(selectedCompareSeat || seat)?.seat_number}</p>
             </div>
-            {seat.price && (
+            {(selectedCompareSeat || seat)?.price && (
               <div className="bg-slate-50 rounded-xl p-4">
                 <p className="text-sm text-slate-500 mb-1">Price</p>
                 <p className="text-xl font-bold text-emerald-600">
-                  ${seat.price.toLocaleString()}
+                  ${(selectedCompareSeat || seat)!.price!.toLocaleString()}
                 </p>
               </div>
             )}
           </div>
 
-          {seat.plan_type && (
+          {(selectedCompareSeat || seat)?.plan_type && (
             <div className="mb-3">
               <p className="text-sm text-slate-500">Plan</p>
-              <p className="font-medium text-slate-900">{seat.plan_type}</p>
+              <p className="font-medium text-slate-900">{(selectedCompareSeat || seat)?.plan_type}</p>
             </div>
           )}
 
-          {seat.term_length && (
+          {(selectedCompareSeat || seat)?.term_length && (
             <div className="mb-3">
               <p className="text-sm text-slate-500">Term</p>
-              <p className="font-medium text-slate-900">{seat.term_length}</p>
+              <p className="font-medium text-slate-900">{(selectedCompareSeat || seat)?.term_length}</p>
             </div>
           )}
 
-          {seat.rep_notes && (
+          {(selectedCompareSeat || seat)?.rep_notes && (
             <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
               <p className="text-sm text-blue-600 font-medium mb-1">Notes from your rep</p>
-              <p className="text-slate-700">{seat.rep_notes}</p>
+              <p className="text-slate-700">{(selectedCompareSeat || seat)?.rep_notes}</p>
             </div>
           )}
         </div>

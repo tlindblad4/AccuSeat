@@ -91,9 +91,13 @@ CREATE TABLE IF NOT EXISTS share_links (
     notes TEXT,
     expires_at TIMESTAMPTZ,
     is_active BOOLEAN DEFAULT true,
+    is_comparison BOOLEAN DEFAULT false, -- True if link contains multiple seats for comparison
     view_count INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add is_comparison column if table exists (migration)
+ALTER TABLE share_links ADD COLUMN IF NOT EXISTS is_comparison BOOLEAN DEFAULT false;
 
 -- Share link items (seats included in a share)
 CREATE TABLE IF NOT EXISTS share_link_items (
