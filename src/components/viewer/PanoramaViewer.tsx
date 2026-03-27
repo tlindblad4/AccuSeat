@@ -21,6 +21,7 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isCssFullscreen, setIsCssFullscreen] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !containerRef.current) return
@@ -103,14 +104,39 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
   const toggleFullscreen = () => {
     if (!wrapperRef.current) return
 
-    if (!isFullscreen) {
-      if (wrapperRef.current.requestFullscreen) {
-        wrapperRef.current.requestFullscreen()
+    // Check if fullscreen API is supported
+    const isFullscreenSupported = !!(
+      document.fullscreenEnabled ||
+      (document as any).webkitFullscreenEnabled ||
+      (document as any).mozFullScreenEnabled ||
+      (document as any).msFullscreenEnabled
+    )
+
+    if (isFullscreenSupported) {
+      if (!isFullscreen) {
+        const requestFullscreen =
+          wrapperRef.current.requestFullscreen ||
+          (wrapperRef.current as any).webkitRequestFullscreen ||
+          (wrapperRef.current as any).mozRequestFullScreen ||
+          (wrapperRef.current as any).msRequestFullscreen
+
+        if (requestFullscreen) {
+          requestFullscreen.call(wrapperRef.current)
+        }
+      } else {
+        const exitFullscreen =
+          document.exitFullscreen ||
+          (document as any).webkitExitFullscreen ||
+          (document as any).mozCancelFullScreen ||
+          (document as any).msExitFullscreen
+
+        if (exitFullscreen) {
+          exitFullscreen.call(document)
+        }
       }
     } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen()
-      }
+      // Fallback: use CSS fullscreen for iOS Safari
+      setIsCssFullscreen(!isCssFullscreen)
     }
   }
 
@@ -120,7 +146,16 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
     }
 
     document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange)
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange)
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange)
+    }
   }, [])
 
   if (error) {
@@ -135,10 +170,15 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
     )
   }
 
+  const isInFullscreen = isFullscreen || isCssFullscreen
+
   return (
     <div
       ref={wrapperRef}
-      className={`w-full h-full min-h-[400px] rounded-lg overflow-hidden relative ${className}`}
+      className={`${isCssFullscreen 
+        ? 'fixed inset-0 z-[9999] w-screen h-screen rounded-none' 
+        : 'w-full h-full min-h-[400px] rounded-lg'
+      } overflow-hidden relative ${className}`}
     >
       <div
         ref={containerRef}
@@ -153,9 +193,9 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
       <button
         onClick={toggleFullscreen}
         className="absolute top-4 right-4 z-20 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm transition-colors"
-        title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+        title={isInFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
       >
-        {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+        {isInFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
       </button>
     </div>
   )
