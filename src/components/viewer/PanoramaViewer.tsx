@@ -183,10 +183,13 @@ export function PanoramaViewer({ imageUrl, className = '' }: PanoramaViewerProps
       } overflow-hidden relative ${className}`}
     >
       <style>{`
-        .pnlm-controls {
+        .pnlm-zoom-controls {
           display: none !important;
         }
         .pnlm-compass {
+          display: none !important;
+        }
+        .pnlm-fullscreen-toggle-button {
           display: none !important;
         }
       `}</style>
