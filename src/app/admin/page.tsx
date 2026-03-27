@@ -224,6 +224,12 @@ export default function AdminDashboard() {
                   </span>
                   <div className="flex gap-2">
                     <Link
+                      href={`/admin/venues/${venue.id}/edit`}
+                      className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                      Edit
+                    </Link>
+                    <Link
                       href={`/admin/venues/${venue.id}/setup`}
                       className="px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                     >
