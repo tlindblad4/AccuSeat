@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Section, Row, Seat, Photo } from '@/types'
 import { PanoramaViewer } from '@/components/viewer/PanoramaViewer'
-import { ArrowLeft, Eye, Share2, Copy, Check, Loader2, GitCompare } from 'lucide-react'
+import { ArrowLeft, Eye, Share2, Copy, Check, Loader2, GitCompare, Search, Filter } from 'lucide-react'
 
 export default function SectionPage() {
   const params = useParams()
@@ -30,6 +30,8 @@ export default function SectionPage() {
   const [smsStatus, setSmsStatus] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [compareSeats, setCompareSeats] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [priceFilter, setPriceFilter] = useState<'all' | 'under500' | '500to1000' | 'over1000'>('all')
 
   useEffect(() => {
     loadSectionData()
@@ -166,9 +168,23 @@ export default function SectionPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const filteredSeats = selectedRow
-    ? seats.filter(s => s.row_id === selectedRow)
-    : seats
+  const filteredSeats = seats.filter(seat => {
+    // Filter by row
+    if (selectedRow && seat.row_id !== selectedRow) return false
+    
+    // Filter by search query
+    if (searchQuery && !seat.seat_number.toLowerCase().includes(searchQuery.toLowerCase())) return false
+    
+    // Filter by price
+    if (priceFilter !== 'all') {
+      const price = seat.price || 0
+      if (priceFilter === 'under500' && price >= 500) return false
+      if (priceFilter === '500to1000' && (price < 500 || price > 1000)) return false
+      if (priceFilter === 'over1000' && price <= 1000) return false
+    }
+    
+    return true
+  })
 
   const selectedRowData = rows.find(r => r.id === selectedRow)
 
@@ -207,6 +223,33 @@ export default function SectionPage() {
                 Section {section?.section_number}
               </h1>
               <p className="text-slate-600">Select a seat to view</p>
+            </div>
+
+            {/* Search & Filter */}
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search seat number..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                />
+              </div>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <select
+                  value={priceFilter}
+                  onChange={(e) => setPriceFilter(e.target.value as any)}
+                  className="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                >
+                  <option value="all">All Prices</option>
+                  <option value="under500">Under $500</option>
+                  <option value="500to1000">$500 - $1,000</option>
+                  <option value="over1000">Over $1,000</option>
+                </select>
+              </div>
             </div>
 
             {/* Row Selector */}
